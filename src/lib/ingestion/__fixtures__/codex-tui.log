@@ -1,0 +1,9 @@
+[32m2026-01-28 10:15:12.345 [info] FunctionCall: exec_command {"cmd":"ls","cwd":"/Users/stephenwalker/Code","sandbox_permissions":"use_default"}[0m
+2026-01-28 10:15:12.678 [info] ToolCall: exec_command {"status":"started","cmd":"ls","cwd":"/Users/stephenwalker/Code"}
+2026-01-28 10:15:12.900 [info] ToolCall: exec_command {"status":"completed","exit_code":0,"duration_ms":222,"stdout_bytes":120,"stderr_bytes":0,"cmd":"ls"}
+2026-01-28 10:16:00.100 [warn] FunctionCall: exec_command args={"cmd":"cat missing.txt"}
+2026-01-28 10:16:00.300 [error] BackgroundEvent: Execution failed: exit code=1 tool=exec_command command="cat missing.txt" stderr="No such file or directory"
+2026-01-28 10:17:05.000 [info] ToolCall: exec_command status=failed exit_code=127 cmd="badcmd" duration_ms=50
+2026-01-28 10:18:12.010 [info] FunctionCall: exec_command
+{"cmd":"echo hello"}
+2026-01-28 10:18:12.250 [info] ToolCall: exec_command {"status":"completed","exit_code":0,"duration_ms":200,"cmd":"echo hello"}

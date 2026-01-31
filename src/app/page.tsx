@@ -1,0 +1,143 @@
+"use client"
+
+import { Cpu, Gauge, Layers, TerminalSquare, Zap } from "lucide-react"
+
+import { useDateRange } from "@/hooks/use-date-range"
+import { useOverview } from "@/hooks/use-overview"
+import { ChartCard } from "@/components/dashboard/chart-card"
+import { KpiGrid } from "@/components/dashboard/kpi-grid"
+import { TokensChart } from "@/components/dashboard/tokens-chart"
+import { CacheChart } from "@/components/dashboard/cache-chart"
+import { CallsChart } from "@/components/dashboard/calls-chart"
+import { KpiSkeleton } from "@/components/shared/loading-skeleton"
+import { ErrorState } from "@/components/shared/error-state"
+import { EmptyState } from "@/components/shared/empty-state"
+
+function getTrend(delta: number | null) {
+  if (delta === null) return "neutral"
+  if (delta > 0) return "up"
+  if (delta < 0) return "down"
+  return "neutral"
+}
+
+export default function OverviewPage() {
+  const { range } = useDateRange()
+  const { data, error, isLoading, isFallback, refresh } = useOverview(range)
+
+  const series = data?.series?.daily ?? []
+  const kpis = data?.kpis
+
+  const kpiItems = kpis
+    ? [
+        {
+          label: "Total tokens",
+          value: kpis.totalTokens.value,
+          change: kpis.totalTokens.deltaPct ?? 0,
+          trend: getTrend(kpis.totalTokens.delta),
+          icon: <Layers className="h-4 w-4" />,
+        },
+        {
+          label: "Cache hit rate",
+          value: kpis.cacheHitRate.value,
+          change: kpis.cacheHitRate.deltaPct ?? 0,
+          trend: getTrend(kpis.cacheHitRate.delta),
+          icon: <Zap className="h-4 w-4" />,
+          isPercent: true,
+        },
+        {
+          label: "Sessions",
+          value: kpis.sessions.value,
+          change: kpis.sessions.deltaPct ?? 0,
+          trend: getTrend(kpis.sessions.delta),
+          icon: <Gauge className="h-4 w-4" />,
+        },
+        {
+          label: "Model calls",
+          value: kpis.modelCalls.value,
+          change: kpis.modelCalls.deltaPct ?? 0,
+          trend: getTrend(kpis.modelCalls.delta),
+          icon: <Cpu className="h-4 w-4" />,
+        },
+        {
+          label: "Tool calls",
+          value: kpis.toolCalls.value,
+          change: kpis.toolCalls.deltaPct ?? 0,
+          trend: getTrend(kpis.toolCalls.delta),
+          icon: <TerminalSquare className="h-4 w-4" />,
+        },
+        {
+          label: "Tool success rate",
+          value: kpis.successRate.value,
+          change: kpis.successRate.deltaPct ?? 0,
+          trend: getTrend(kpis.successRate.delta),
+          icon: <TerminalSquare className="h-4 w-4" />,
+          isPercent: true,
+        },
+      ]
+    : []
+
+  return (
+    <div className="space-y-6">
+      {isFallback && (
+        <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+          Showing sample data while the local Codex data ingests.
+        </div>
+      )}
+
+      {isLoading && !data && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <KpiSkeleton key={index} />
+          ))}
+        </div>
+      )}
+
+      {error && !data && (
+        <ErrorState
+          description="We couldn’t load overview metrics. Try refreshing."
+          onRetry={refresh}
+        />
+      )}
+
+      {data && (
+        <>
+          <KpiGrid items={kpiItems} />
+
+          {series.length === 0 ? (
+            <EmptyState
+              title="No activity yet"
+              description="Once Codex sessions are ingested, charts will appear here."
+            />
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-3">
+              <ChartCard
+                title="Token throughput"
+                description="Input, cached input, and output tokens"
+              >
+                <TokensChart data={series} />
+              </ChartCard>
+              <ChartCard
+                title="Cache utilization"
+                description="Percent of input tokens served from cache"
+              >
+                <CacheChart data={series} />
+              </ChartCard>
+              <ChartCard
+                title="Model calls"
+                description="Total model invocations per day"
+              >
+                <CallsChart data={series} />
+              </ChartCard>
+            </div>
+          )}
+        </>
+      )}
+
+      {isLoading && data && (
+        <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+          Refreshing metrics…
+        </div>
+      )}
+    </div>
+  )
+}

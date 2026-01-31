@@ -1,0 +1,73 @@
+import { getDateRange, rangeToResponse } from '@/lib/metrics/date-range';
+import { jsonError, jsonOk } from '@/lib/metrics/http';
+import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination';
+import { getSessionDetail } from '@/lib/metrics/session-detail';
+
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const url = new URL(request.url);
+    const { range, errors: rangeErrors } = getDateRange(url.searchParams);
+
+    const messagePagination = parsePagination(url.searchParams, {
+      defaultLimit: 50,
+      maxLimit: 200,
+      prefix: 'message',
+    });
+    const modelPagination = parsePagination(url.searchParams, {
+      defaultLimit: 50,
+      maxLimit: 200,
+      prefix: 'model',
+    });
+    const toolPagination = parsePagination(url.searchParams, {
+      defaultLimit: 50,
+      maxLimit: 200,
+      prefix: 'tool',
+    });
+
+    const errors = [
+      ...rangeErrors,
+      ...messagePagination.errors,
+      ...modelPagination.errors,
+      ...toolPagination.errors,
+    ];
+    if (errors.length > 0) {
+      return jsonError(errors.join('; '), 'invalid_query');
+    }
+
+    const result = getSessionDetail(
+      params.id,
+      range,
+      messagePagination.pagination,
+      modelPagination.pagination,
+      toolPagination.pagination
+    );
+
+    if (!result.session) {
+      return jsonError('Session not found', 'not_found', 404);
+    }
+
+    return jsonOk({
+      range: rangeToResponse(range),
+      session: result.session,
+      stats: result.stats,
+      messages: {
+        pagination: paginationToResponse(messagePagination.pagination, result.messages.total),
+        items: result.messages.items,
+      },
+      modelCalls: {
+        pagination: paginationToResponse(modelPagination.pagination, result.modelCalls.total),
+        items: result.modelCalls.items,
+      },
+      toolCalls: {
+        pagination: paginationToResponse(toolPagination.pagination, result.toolCalls.total),
+        items: result.toolCalls.items,
+      },
+    });
+  } catch (error) {
+    console.error('sessions:detail failed', error);
+    return jsonError('Failed to load session', 'internal_error', 500);
+  }
+}
