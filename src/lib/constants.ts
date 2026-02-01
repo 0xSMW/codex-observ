@@ -47,6 +47,10 @@ export function formatCost(cost: number | null | undefined): string {
   return `$${cost.toFixed(2)}`
 }
 
+export function formatCurrency(value: number | null | undefined): string {
+  return formatCost(value)
+}
+
 export function formatDuration(ms: number) {
   if (!Number.isFinite(ms)) return '—'
   if (ms < 1000) return `${Math.round(ms)}ms`
