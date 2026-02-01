@@ -14,7 +14,7 @@ export function ModelsCostChart({ models }: ModelsChartsProps) {
   if (!models || models.length === 0) return null
 
   const chartConfig = {
-    cost: { label: 'Cost', color: 'hsl(var(--chart-1))' },
+    cost: { label: 'Cost', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   // Top 10 by cost
@@ -70,7 +70,7 @@ export function ModelsTokenChart({ models }: ModelsChartsProps) {
   if (!models || models.length === 0) return null
 
   const chartConfig = {
-    tokens: { label: 'Tokens', color: 'hsl(var(--chart-2))' },
+    tokens: { label: 'Tokens', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   // Top 10 by tokens
