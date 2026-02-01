@@ -166,37 +166,6 @@ export default function ToolsPage() {
               onChange={handleSearchChange}
             />
           </div>
-          {totalPages > 1 && (
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    aria-disabled={page <= 1 || isLoading}
-                    className={
-                      page <= 1 || isLoading ? 'pointer-events-none opacity-50' : 'cursor-pointer'
-                    }
-                  />
-                </PaginationItem>
-                <PaginationItem>
-                  <span className="text-sm text-muted-foreground px-4">
-                    Page {page} of {totalPages || 1}
-                  </span>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    aria-disabled={page >= totalPages || isLoading}
-                    className={
-                      page >= totalPages || isLoading
-                        ? 'pointer-events-none opacity-50'
-                        : 'cursor-pointer'
-                    }
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          )}
         </div>
 
         {isLoading && !data && <TableSkeleton rows={5} />}
@@ -249,6 +218,39 @@ export default function ToolsPage() {
               )}
             </TableBody>
           </Table>
+        )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center px-4 py-3 border-t">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    aria-disabled={page <= 1 || isLoading}
+                    className={
+                      page <= 1 || isLoading ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="text-sm text-muted-foreground px-4">
+                    Page {page} of {totalPages || 1}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    aria-disabled={page >= totalPages || isLoading}
+                    className={
+                      page >= totalPages || isLoading
+                        ? 'pointer-events-none opacity-50'
+                        : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
         )}
         <div className="border-t px-4 py-3 text-xs text-muted-foreground">
           {data && (
