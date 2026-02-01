@@ -8,7 +8,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
+import {
+  formatCompactNumber,
+  formatDuration,
+  formatDurationSeconds,
+  formatPercent,
+} from '@/lib/constants'
 import type { SessionDetailResponse } from '@/types/api'
 
 function successStatus(rate: number, toolCallCount: number) {
@@ -132,7 +137,7 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                     {formatCompactNumber(call.outputTokens)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
+                    {formatDurationSeconds(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -181,7 +186,7 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                     <StatusBadge status={call.status} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
+                    {formatDurationSeconds(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                   <TableCell
                     className="max-w-[180px] truncate text-xs text-muted-foreground"
