@@ -5,6 +5,36 @@ export type IngestStateRow = {
   updated_at: number
 }
 
+export type ProjectRow = {
+  id: string
+  name: string
+  root_path: string | null
+  git_remote: string | null
+  first_seen_ts: number | null
+  last_seen_ts: number | null
+}
+
+export type ProjectRefRow = {
+  id: string
+  project_id: string
+  branch: string | null
+  commit: string | null
+  cwd: string | null
+  first_seen_ts: number | null
+  last_seen_ts: number | null
+}
+
+export type SessionContextRow = {
+  id: string
+  session_id: string
+  ts: number
+  model: string | null
+  model_provider: string | null
+  source_file: string
+  source_line: number
+  dedup_key: string
+}
+
 export type SessionRow = {
   id: string
   ts: number
@@ -14,6 +44,8 @@ export type SessionRow = {
   model_provider: string | null
   git_branch: string | null
   git_commit: string | null
+  project_id: string | null
+  project_ref_id: string | null
   source_file: string
   source_line: number
   dedup_key: string
