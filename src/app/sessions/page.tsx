@@ -7,6 +7,7 @@ import { useDateRange } from '@/hooks/use-date-range'
 import { useSessions } from '@/hooks/use-sessions'
 import { useModels } from '@/hooks/use-models'
 import { useProviders } from '@/hooks/use-providers'
+import { useProjects } from '@/hooks/use-projects'
 import { SessionFilters, type SessionFiltersValue } from '@/components/sessions/session-filters'
 import { SessionsTable } from '@/components/sessions/sessions-table'
 import { TableSkeleton } from '@/components/shared/loading-skeleton'
@@ -22,6 +23,7 @@ export default function SessionsPage() {
     search: '',
     model: 'all',
     provider: 'all',
+    project: 'all',
   })
 
   const query = {
@@ -30,12 +32,18 @@ export default function SessionsPage() {
     query: filters.search || undefined,
     models: filters.model !== 'all' ? [filters.model] : undefined,
     providers: filters.provider !== 'all' ? [filters.provider] : undefined,
+    project: filters.project !== 'all' ? filters.project : undefined,
     range,
   }
 
   const { data, error, isLoading, refresh } = useSessions(query)
   const { data: modelsData } = useModels()
   const { data: providersData } = useProviders()
+  const { data: projectsData } = useProjects({
+    page: 1,
+    pageSize: 100,
+    range,
+  })
 
   const models = useMemo(() => {
     const fromApi = modelsData?.models?.map((model) => model.model) ?? []
@@ -57,6 +65,11 @@ export default function SessionsPage() {
     return Array.from(set)
   }, [data, providersData])
 
+  const projects = useMemo(() => {
+    const list = projectsData?.projects ?? []
+    return list.map((p) => ({ id: p.id, name: p.name || p.id }))
+  }, [projectsData])
+
   const totalPages = data ? Math.ceil(data.pagination.total / PAGE_SIZE) : 1
 
   return (
@@ -65,6 +78,7 @@ export default function SessionsPage() {
         value={filters}
         models={models}
         providers={providers}
+        projects={projects}
         onChange={(next) => {
           setFilters(next)
           setPage(1)
