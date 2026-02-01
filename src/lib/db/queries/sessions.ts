@@ -9,6 +9,8 @@ export interface SessionRecord {
   model_provider: string | null
   git_branch: string | null
   git_commit: string | null
+  project_id?: string | null
+  project_ref_id?: string | null
   source_file: string
   source_line: number
   dedup_key: string
@@ -32,16 +34,16 @@ function getStatements(db: Db): Statements {
   const insert = db.prepare(
     `INSERT INTO session (
       id, ts, cwd, originator, cli_version, model_provider, git_branch, git_commit,
-      source_file, source_line, dedup_key
+      project_id, project_ref_id, source_file, source_line, dedup_key
     ) VALUES (
       @id, @ts, @cwd, @originator, @cli_version, @model_provider, @git_branch, @git_commit,
-      @source_file, @source_line, @dedup_key
+      @project_id, @project_ref_id, @source_file, @source_line, @dedup_key
     ) ON CONFLICT(dedup_key) DO NOTHING`
   )
 
   const getById = db.prepare(
     `SELECT id, ts, cwd, originator, cli_version, model_provider, git_branch, git_commit,
-      source_file, source_line, dedup_key
+      project_id, project_ref_id, source_file, source_line, dedup_key
      FROM session
      WHERE id = ?`
   )
@@ -54,7 +56,12 @@ function getStatements(db: Db): Statements {
 }
 
 export function insertSession(db: Db, record: SessionRecord): boolean {
-  const result = getStatements(db).insert.run(record)
+  const payload = {
+    ...record,
+    project_id: record.project_id ?? null,
+    project_ref_id: record.project_ref_id ?? null,
+  }
+  const result = getStatements(db).insert.run(payload)
   return Number(result.changes ?? 0) > 0
 }
 
