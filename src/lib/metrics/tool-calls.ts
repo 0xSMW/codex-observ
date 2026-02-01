@@ -53,6 +53,10 @@ export interface ToolCallsListResult {
   total: number
   toolCalls: ToolCallListItem[]
   summary: ToolCallSummary
+  breakdown: {
+    tools: ToolBreakdown[]
+    failures: FailureBreakdown[]
+  }
 }
 
 function buildWhere(options: ToolCallsListOptions, range: DateRange) {
@@ -126,7 +130,7 @@ function querySummary(
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_count,
         SUM(CASE WHEN status = 'failed' OR (exit_code IS NOT NULL AND exit_code != 0) THEN 1 ELSE 0 END) AS failed_count,
         SUM(CASE WHEN status = 'unknown' THEN 1 ELSE 0 END) AS unknown_count,
-        AVG(COALESCE(duration_ms, end_ts - start_ts)) AS avg_duration_ms
+        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
         )
@@ -189,31 +193,66 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       unknown
     >[]
 
-    toolCalls = rows.map((row) => {
-      const startTs = toNumber(row.start_ts)
-      const endTs = row.end_ts === null ? null : toNumber(row.end_ts)
-      const durationMs =
-        row.duration_ms !== null && row.duration_ms !== undefined
-          ? toNumber(row.duration_ms)
-          : endTs !== null && Number.isFinite(startTs) && Number.isFinite(endTs)
-            ? endTs - startTs
-            : null
-      return {
-        id: String(row.id ?? ''),
-        sessionId: (row.session_id as string | null) ?? null,
-        toolName: String(row.tool_name ?? ''),
-        command: (row.command as string | null) ?? null,
-        status: String(row.status ?? 'unknown'),
-        startTs,
-        endTs,
-        durationMs,
-        exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
-        error: (row.error as string | null) ?? null,
-        stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
-        stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
-        correlationKey: (row.correlation_key as string | null) ?? null,
-      }
-    })
+    toolCalls = rows.map((row) => ({
+      id: String(row.id ?? ''),
+      sessionId: (row.session_id as string | null) ?? null,
+      toolName: String(row.tool_name ?? ''),
+      command: (row.command as string | null) ?? null,
+      status: String(row.status ?? 'unknown'),
+      startTs: toNumber(row.start_ts),
+      endTs: row.end_ts === null ? null : toNumber(row.end_ts),
+      durationMs: row.duration_ms === null ? null : toNumber(row.duration_ms),
+      exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
+      error: (row.error as string | null) ?? null,
+      stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
+      stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
+      correlationKey: (row.correlation_key as string | null) ?? null,
+    }))
+  }
+
+  // Fetch breakdowns
+  const breakdown: ToolCallsListResult['breakdown'] = { tools: [], failures: [] }
+
+  if (tableExists(db, 'tool_call')) {
+      const toolBreakdownRows = db.prepare(`
+        SELECT 
+          tool_name, 
+          COUNT(*) as count,
+          avg(duration_ms) as avg_dur,
+          SUM(CASE WHEN status='ok' OR status='unknown' OR exit_code=0 THEN 1 ELSE 0 END) as success_count
+        FROM tool_call
+        ${whereSql}
+        GROUP BY tool_name
+        ORDER BY count DESC
+        LIMIT 20
+      `).all(...params) as Record<string, unknown>[]
+
+      const failureRows = db.prepare(`
+        SELECT 
+          error,
+          MAX(tool_name) as tool_example,
+          COUNT(*) as count
+        FROM tool_call
+        ${whereSql}
+        AND (status = 'failed' OR (exit_code IS NOT NULL AND exit_code != 0))
+        AND error IS NOT NULL AND error != ''
+        GROUP BY error
+        ORDER BY count DESC
+        LIMIT 10
+      `).all(...params) as Record<string, unknown>[]
+
+      breakdown.tools = toolBreakdownRows.map(row => ({
+          tool: String(row.tool_name),
+          count: toNumber(row.count),
+          avgDurationMs: toNumber(row.avg_dur),
+          successRate: toNumber(row.count) > 0 ? toNumber(row.success_count) / toNumber(row.count) : 0
+      }))
+
+      breakdown.failures = failureRows.map(row => ({
+          error: String(row.error),
+          count: toNumber(row.count),
+          tool: String(row.tool_example)
+      }))
   }
 
   return {
@@ -228,5 +267,19 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       prevAvgDurationMs: prevSummary?.avgDurationMs ?? null,
       prevSuccessRate: prevSummary?.successRate ?? null,
     },
+    breakdown,
   }
+}
+
+export interface ToolBreakdown {
+  tool: string
+  count: number
+  successRate: number
+  avgDurationMs: number
+}
+
+export interface FailureBreakdown {
+  error: string
+  count: number
+  tool: string | null
 }
