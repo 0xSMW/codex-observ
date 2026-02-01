@@ -18,7 +18,8 @@ function getProject(cwd: string | null) {
   return parts[parts.length - 1] || cwd
 }
 
-function successStatus(rate: number) {
+function successStatus(rate: number, toolCallCount: number) {
+  if (toolCallCount === 0) return 'ok' // No tools run = nothing to fail
   if (rate >= 0.9) return 'ok'
   if (rate >= 0.7) return 'partial'
   return 'failed'
@@ -64,7 +65,7 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
                 {formatDuration(session.durationMs === null ? Number.NaN : session.durationMs)}
               </TableCell>
               <TableCell className="text-right">
-                <StatusBadge status={successStatus(session.successRate)} />
+                <StatusBadge status={successStatus(session.successRate, session.toolCallCount)} />
               </TableCell>
             </TableRow>
           ))}
