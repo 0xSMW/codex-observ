@@ -1,3 +1,4 @@
+import { toNumber } from '@/lib/utils'
 import { applyDateRange, DateRange } from './date-range'
 import { getDatabase, tableExists } from './db'
 import { Pagination } from './pagination'
@@ -41,19 +42,6 @@ export interface SessionsListResult {
   sessions: SessionListItem[]
 }
 
-function toNumber(value: unknown, fallback = 0): number {
-  if (value === null || value === undefined) {
-    return fallback
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-  const parsed = Number(value)
-  if (Number.isFinite(parsed)) {
-    return parsed
-  }
-  return fallback
-}
 
 function buildWhere(options: SessionsListOptions, hasModelCall: boolean) {
   const where: string[] = []
