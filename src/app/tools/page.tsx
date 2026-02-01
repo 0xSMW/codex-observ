@@ -115,7 +115,7 @@ export default function ToolsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-32">Tool</TableHead>
-                <TableHead className="min-w-0">Command</TableHead>
+                <TableHead className="min-w-0 max-w-[280px]">Command</TableHead>
                 <TableHead className="text-right w-16">Exit</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
                 <TableHead className="text-right">Status</TableHead>
@@ -126,10 +126,11 @@ export default function ToolsPage() {
               {data.toolCalls.map((call) => (
                 <TableRow key={call.id} className="hover:bg-muted/40">
                   <TableCell className="font-medium">{call.toolName}</TableCell>
-                  <TableCell className="min-w-0 text-xs text-muted-foreground">
-                    <span className="block truncate" title={call.command ?? undefined}>
-                      {call.command ?? '—'}
-                    </span>
+                  <TableCell
+                    className="min-w-0 max-w-[280px] truncate text-xs text-muted-foreground"
+                    title={call.command ?? undefined}
+                  >
+                    <span className="block truncate">{call.command ?? '—'}</span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {call.exitCode !== null ? call.exitCode : '—'}
