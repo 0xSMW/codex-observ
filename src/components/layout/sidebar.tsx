@@ -129,9 +129,7 @@ export function Sidebar() {
         <div className="border-t border-sidebar-border">
           {!collapsed && (
             <div className="border-b border-sidebar-border px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
-                Theme
-              </p>
+              <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">Theme</p>
               <div className="mt-2">
                 <ThemeToggle />
               </div>
