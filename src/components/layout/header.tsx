@@ -7,14 +7,20 @@ import { DateRangePicker } from '@/components/shared/date-range-picker'
 import { NAV_ITEMS } from '@/lib/constants'
 import { useHeaderTitle } from '@/components/layout/header-title-context'
 
+function getRouteFallback(pathname: string): { title: string; description?: string } | null {
+  if (/^\/projects\/[^/]+$/.test(pathname)) return { title: 'Project', description: 'Project detail' }
+  return null
+}
+
 export function Header() {
   const pathname = usePathname()
+  const { title, description } = useHeaderTitle()
   if (pathname === '/') return null
   const current = NAV_ITEMS.find((item) => item.href === pathname)
-  const { title, description } = useHeaderTitle()
+  const routeFallback = getRouteFallback(pathname)
 
-  const headerTitle = title ?? current?.title ?? 'Dashboard'
-  const headerDescription = description ?? current?.description
+  const headerTitle = title ?? routeFallback?.title ?? current?.title ?? 'Dashboard'
+  const headerDescription = description ?? routeFallback?.description ?? current?.description
 
   return (
     <header className="sticky top-0 z-40 select-none border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
