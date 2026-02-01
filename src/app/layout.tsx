@@ -27,6 +27,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var stored=localStorage.getItem('theme');var theme=stored||'system';var prefers=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var effective=theme==='system'?prefers:theme;var root=document.documentElement;if(effective==='dark'){root.classList.add('dark')}else{root.classList.remove('dark')}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background text-foreground antialiased`}
       >
