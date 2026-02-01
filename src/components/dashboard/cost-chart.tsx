@@ -15,9 +15,15 @@ function formatAxisCost(value: number): string {
   return `$${value.toFixed(2)}`
 }
 
-export function CostChart({ data }: { data: OverviewSeriesPoint[] }) {
+export function CostChart({
+  data,
+  className = 'min-h-[260px] w-full',
+}: {
+  data: OverviewSeriesPoint[]
+  className?: string
+}) {
   return (
-    <ChartContainer config={chartConfig} className="min-h-[260px] w-full">
+    <ChartContainer config={chartConfig} className={className}>
       <BarChart data={data}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
         <XAxis dataKey="date" tickLine={false} axisLine={false} />
