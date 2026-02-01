@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "tsx scripts/run-ingest-and-backfill.ts --full && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ingest:smoke": "tsx scripts/ingest-smoke.ts",
+    "ingest:full": "tsx scripts/run-ingest-and-backfill.ts --full",
     "log:smoke": "tsx scripts/log-parse-smoke.ts",
     "verify:dashboard": "node scripts/verify-dashboard-data.mjs",
     "test:e2e": "pnpm build && vitest run --config vitest.config.ts"
