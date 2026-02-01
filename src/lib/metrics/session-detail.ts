@@ -194,7 +194,8 @@ export function getSessionDetail(
   const modelLastTs = modelRow ? toNumber(modelRow.last_ts) : null
   const sessionEnd =
     modelLastTs !== null ? Math.max(sessionTs, modelLastTs) : sessionTs + 24 * 60 * 60 * 1000
-  const windowStart = (modelFirstTs !== null ? Math.min(sessionTs, modelFirstTs) : sessionTs) - 24 * 60 * 60 * 1000
+  const windowStart =
+    (modelFirstTs !== null ? Math.min(sessionTs, modelFirstTs) : sessionTs) - 24 * 60 * 60 * 1000
   const windowEnd = sessionEnd + 60 * 60 * 1000
   const statsWhereTool: string[] = [
     '(session_id = ? OR (session_id IS NULL AND start_ts >= ? AND start_ts <= ?))',
@@ -360,9 +361,9 @@ export function getSessionDetail(
         durationMs,
         exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
         error: (row.error as string | null) ?? null,
-      stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
-      stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
-      correlationKey: (row.correlation_key as string | null) ?? null,
+        stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
+        stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
+        correlationKey: (row.correlation_key as string | null) ?? null,
       }
     })
   }
