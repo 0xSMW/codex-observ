@@ -3,9 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLiveUpdatesContext } from '@/hooks/use-live-updates-context'
 
-export function useSyncStatus(): { lastSyncedAt: number | null } {
+export function useSyncStatus(): {
+  lastSyncedAt: number | null
+  triggerSync: () => Promise<void>
+  isSyncing: boolean
+} {
   const { lastUpdate } = useLiveUpdatesContext()
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
   const lastUpdateTime = lastUpdate?.getTime()
   const prevRefreshKey = useRef<number | null>(null)
 
@@ -20,6 +25,23 @@ export function useSyncStatus(): { lastSyncedAt: number | null } {
     }
   }, [])
 
+  const triggerSync = useCallback(async () => {
+    if (isSyncing) return
+    setIsSyncing(true)
+    try {
+      const res = await fetch('/api/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'incremental' }),
+      })
+      if (res.ok) {
+        await fetchSyncStatus()
+      }
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [isSyncing, fetchSyncStatus])
+
   useEffect(() => {
     fetchSyncStatus()
   }, [fetchSyncStatus])
@@ -31,5 +53,5 @@ export function useSyncStatus(): { lastSyncedAt: number | null } {
     }
   }, [lastUpdateTime, fetchSyncStatus])
 
-  return { lastSyncedAt }
+  return { lastSyncedAt, triggerSync, isSyncing }
 }
