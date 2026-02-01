@@ -25,9 +25,9 @@ export function ProjectsChart({ projects }: ProjectsChartProps) {
   const [metric, setMetric] = useState<Metric>('tokens')
 
   const chartConfig = {
-    tokens: { label: 'Tokens', color: 'hsl(var(--chart-1))' },
-    sessions: { label: 'Sessions', color: 'hsl(var(--chart-2))' },
-    cost: { label: 'Est. Cost', color: 'hsl(var(--chart-3))' },
+    tokens: { label: 'Tokens', color: 'var(--foreground)' },
+    sessions: { label: 'Sessions', color: 'var(--foreground)' },
+    cost: { label: 'Est. Cost', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   const data = useMemo(() => {
