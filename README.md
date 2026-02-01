@@ -67,6 +67,17 @@ pnpm test:e2e
 
 - This app is designed to run locally and read from your `~/.codex` directory.
 - No data is sent externally.
+- `pnpm dev` runs a full ingest before starting the server so dashboard data is up to date.
+
+### Missing or stale data?
+
+If the heatmap, activity, or token counts look wrong or are missing recent days:
+
+```bash
+pnpm ingest:full
+```
+
+Then refresh the dashboard. This re-ingests all Codex session files from scratch (incremental ingest can miss data when files were still being written).
 
 ## Project plan
 
@@ -75,3 +86,5 @@ See `INIT.md` for architecture, schema, and execution plan.
 ## UI docs
 
 See `docs/shadcn.md` for shadcn/ui setup and chart notes.
+
+Lines of code: 20,683 (2025-02-01).
