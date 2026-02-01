@@ -1,6 +1,6 @@
 # Codex Observability
 
-<img width="1728" height="993" alt="image" src="https://github.com/user-attachments/assets/9a5e4b17-6380-4c27-9deb-8f28eb4fc6ba" />
+<img width="1728" height="993" alt="image" src="https://github.com/user-attachments/assets/ddb4c8fc-15be-4e22-a9b8-ef7d3d59174c" />
 
 Local‑only observability dashboard for Codex CLI usage. This app reads your local Codex data in `~/.codex` and visualizes activity, tokens (including cache), model calls, tool‑call success rates, durations, and more.
 
