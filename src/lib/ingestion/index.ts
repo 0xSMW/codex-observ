@@ -7,9 +7,14 @@ import { getIngestState, setIngestState } from '../db/queries/ingest-state'
 import { insertSession, type SessionRecord } from '../db/queries/sessions'
 import { insertMessage, type MessageRecord } from '../db/queries/messages'
 import { insertModelCall, type ModelCallRecord } from '../db/queries/model-calls'
+import { upsertProject, upsertProjectRef } from '../db/queries/projects'
+import { insertSessionContext, type SessionContextRecord } from '../db/queries/session-context'
+import { insertToolCallEvents } from '../db/queries/tool-call-events'
 import { discoverSessionFiles } from './file-discovery'
 import { readJsonlIncremental } from './jsonl-reader'
 import { parseLogFile } from './log-parser'
+import { deriveProjectAndRef } from './project-id'
+import { generateDedupKey } from './dedup'
 import { parseSessionMeta } from './parsers/session-meta'
 import { parseResponseItem } from './parsers/response-item'
 import { parseEventMsg } from './parsers/event-msg'
@@ -158,6 +163,7 @@ async function ingestInternal(
     const sessions: SessionRecord[] = []
     const messages: MessageRecord[] = []
     const modelCalls: ModelCallRecord[] = []
+    const sessionContexts: SessionContextRecord[] = []
 
     const contextBySession = new Map<string, SessionContextUpdate>()
     let currentSessionId: string | null = null
@@ -178,6 +184,21 @@ async function ingestInternal(
 
       const sessionParsed = parseSessionMeta(line.json, baseContext)
       if (sessionParsed) {
+        const derived = deriveProjectAndRef(sessionParsed.record, sessionParsed.record.ts)
+        if (derived) {
+          try {
+            upsertProject(db, derived.projectInsert)
+            upsertProjectRef(db, derived.projectRefInsert)
+          } catch (err) {
+            errors.push({
+              file: filePath,
+              line: line.lineNumber,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          }
+          sessionParsed.record.project_id = derived.projectId
+          sessionParsed.record.project_ref_id = derived.projectRefId
+        }
         sessions.push(sessionParsed.record)
         currentSessionId = sessionParsed.sessionId
         updateSessionContext(contextBySession, {
@@ -189,6 +210,24 @@ async function ingestInternal(
 
       const contextUpdate = parseTurnContext(line.json, baseContext)
       if (contextUpdate) {
+        const ts = baseContext.fallbackTs ?? Date.now()
+        const payloadForDedup = {
+          sessionId: contextUpdate.sessionId,
+          ts,
+          model: contextUpdate.model ?? null,
+          modelProvider: contextUpdate.modelProvider ?? null,
+        }
+        const dedupKey = generateDedupKey(filePath, line.lineNumber, payloadForDedup)
+        sessionContexts.push({
+          id: dedupKey,
+          session_id: contextUpdate.sessionId,
+          ts,
+          model: contextUpdate.model ?? null,
+          model_provider: contextUpdate.modelProvider ?? null,
+          source_file: filePath,
+          source_line: line.lineNumber,
+          dedup_key: dedupKey,
+        })
         updateSessionContext(contextBySession, contextUpdate)
         currentSessionId = contextUpdate.sessionId
         continue
@@ -209,6 +248,7 @@ async function ingestInternal(
     insertBatched(db, sessions, insertSession, errors, filePath)
     insertBatched(db, messages, insertMessage, errors, filePath)
     insertBatched(db, modelCalls, insertModelCall, errors, filePath)
+    insertBatched(db, sessionContexts, insertSessionContext, errors, filePath)
 
     setIngestState(db, {
       path: filePath,
@@ -248,6 +288,9 @@ async function ingestInternal(
 
     if (logResult.toolCalls.length > 0) {
       insertToolCalls(db, logResult.toolCalls)
+    }
+    if (logResult.events.length > 0) {
+      insertToolCallEvents(db, logResult.events)
     }
 
     setIngestState(db, {
