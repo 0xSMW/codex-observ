@@ -1,11 +1,14 @@
 "use client"
 
-import { buildMockModels } from "@/lib/constants"
 import type { ModelsResponse } from "@/types/api"
 import { useApiData } from "@/hooks/use-api"
+import { useLiveUpdatesContext } from "@/hooks/use-live-updates-context"
 
 export function useModels() {
-  return useApiData<ModelsResponse>("/api/models", buildMockModels, {
+  const { lastUpdate } = useLiveUpdatesContext()
+  
+  return useApiData<ModelsResponse>("/api/models", undefined, {
     refreshInterval: 60000,
+    refreshKey: lastUpdate,
   })
 }

@@ -3,11 +3,13 @@
 import { useMemo } from "react"
 import type { DateRange } from "react-day-picker"
 
-import { buildMockOverviewResponse } from "@/lib/constants"
 import type { OverviewResponse } from "@/types/api"
 import { useApiData } from "@/hooks/use-api"
+import { useLiveUpdatesContext } from "@/hooks/use-live-updates-context"
 
 export function useOverview(range: DateRange) {
+  const { lastUpdate } = useLiveUpdatesContext()
+  
   const params = useMemo(() => {
     if (!range?.from || !range?.to) return ""
     const search = new URLSearchParams({
@@ -19,7 +21,8 @@ export function useOverview(range: DateRange) {
 
   const url = params ? `/api/overview?${params}` : "/api/overview"
 
-  return useApiData<OverviewResponse>(url, buildMockOverviewResponse, {
+  return useApiData<OverviewResponse>(url, undefined, {
     refreshInterval: 30000,
+    refreshKey: lastUpdate,
   })
 }

@@ -1,13 +1,11 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
+import { useMemo } from "react"
 import type { DateRange } from "react-day-picker"
 
-import {
-  buildMockSessions,
-} from "@/lib/constants"
 import type { SessionsResponse } from "@/types/api"
 import { useApiData } from "@/hooks/use-api"
+import { useLiveUpdatesContext } from "@/hooks/use-live-updates-context"
 
 export type SessionsQuery = {
   page: number
@@ -19,6 +17,8 @@ export type SessionsQuery = {
 }
 
 export function useSessions(query: SessionsQuery) {
+  const { lastUpdate } = useLiveUpdatesContext()
+  
   const params = useMemo(() => {
     const search = new URLSearchParams({
       page: String(query.page),
@@ -35,26 +35,10 @@ export function useSessions(query: SessionsQuery) {
     return search.toString()
   }, [query])
 
-  const fallback = useCallback((): SessionsResponse => {
-    const seed = buildMockSessions(120)
-    const start = (query.page - 1) * query.pageSize
-    const paged = seed.sessions.slice(start, start + query.pageSize)
-    return {
-      ...seed,
-      sessions: paged,
-      pagination: {
-        ...seed.pagination,
-        limit: query.pageSize,
-        pageSize: query.pageSize,
-        offset: start,
-        page: query.page,
-      },
-    }
-  }, [query.page, query.pageSize])
-
   const url = `/api/sessions?${params}`
 
-  return useApiData<SessionsResponse>(url, fallback, {
+  return useApiData<SessionsResponse>(url, undefined, {
     refreshInterval: 30000,
+    refreshKey: lastUpdate,
   })
 }

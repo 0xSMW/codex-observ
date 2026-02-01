@@ -13,7 +13,7 @@ export type ApiState<T> = {
 export function useApiData<T>(
   url: string | null,
   fallback?: () => T,
-  options?: { refreshInterval?: number }
+  options?: { refreshInterval?: number; refreshKey?: number | Date | null }
 ): ApiState<T> {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<Error | null>(null)
@@ -71,6 +71,18 @@ export function useApiData<T>(
     const interval = window.setInterval(fetchData, options.refreshInterval)
     return () => window.clearInterval(interval)
   }, [fetchData, options?.refreshInterval])
+
+  // Refetch when refreshKey changes (triggered by SSE events)
+  const refreshKeyValue = options?.refreshKey instanceof Date 
+    ? options.refreshKey.getTime() 
+    : options?.refreshKey
+  const prevRefreshKey = useRef(refreshKeyValue)
+  useEffect(() => {
+    if (refreshKeyValue && refreshKeyValue !== prevRefreshKey.current) {
+      prevRefreshKey.current = refreshKeyValue
+      fetchData()
+    }
+  }, [refreshKeyValue, fetchData])
 
   return { data, error, isLoading, isFallback, refresh: fetchData }
 }

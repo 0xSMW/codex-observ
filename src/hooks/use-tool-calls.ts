@@ -1,11 +1,14 @@
 "use client"
 
-import { buildMockToolCalls } from "@/lib/constants"
 import type { ToolCallsResponse } from "@/types/api"
 import { useApiData } from "@/hooks/use-api"
+import { useLiveUpdatesContext } from "@/hooks/use-live-updates-context"
 
 export function useToolCalls() {
-  return useApiData<ToolCallsResponse>("/api/tool-calls", buildMockToolCalls, {
+  const { lastUpdate } = useLiveUpdatesContext()
+  
+  return useApiData<ToolCallsResponse>("/api/tool-calls", undefined, {
     refreshInterval: 30000,
+    refreshKey: lastUpdate,
   })
 }
