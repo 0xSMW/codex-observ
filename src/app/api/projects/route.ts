@@ -3,6 +3,7 @@ import { parseSearchParam } from '@/lib/metrics/filters'
 import { jsonError, jsonOk } from '@/lib/metrics/http'
 import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination'
 import { getProjectsList } from '@/lib/metrics/projects'
+import { cachedQuery } from '@/lib/performance/cache'
 
 export async function GET(request: Request) {
   try {
@@ -20,17 +21,30 @@ export async function GET(request: Request) {
 
     const search = parseSearchParam(url.searchParams, ['q', 'search'])
 
-    const { projects, total } = getProjectsList({
-      range,
-      pagination,
-      search,
-    })
+    const cacheKey = `projects:list:${url.searchParams.toString()}`
+    const data = cachedQuery(
+      cacheKey,
+      () => {
+        const { projects, total } = getProjectsList({
+          range,
+          pagination,
+          search,
+        })
 
-    return jsonOk({
-      range: rangeToResponse(range),
-      filters: { search },
-      pagination: paginationToResponse(pagination, total),
-      projects,
+        return {
+          range: rangeToResponse(range),
+          filters: { search },
+          pagination: paginationToResponse(pagination, total),
+          projects,
+        }
+      },
+      30000
+    )
+
+    return jsonOk(data, {
+      headers: {
+        'Cache-Control': 'public, max-age=0, s-maxage=30, stale-while-revalidate=300',
+      },
     })
   } catch (error) {
     console.error('projects:list failed', error)
