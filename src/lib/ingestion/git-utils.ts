@@ -49,8 +49,9 @@ export function normalizeGitUrl(url: string | null): string | null {
 }
 
 /**
- * Recursively finds the .git directory starting from the given path.
+ * Recursively finds the .git directory (or gitfile) starting from the given path.
  * Returns the path to the directory containing .git, or null if not found.
+ * Supports both regular repos (.git is a directory) and worktrees/submodules (.git is a file with "gitdir: <path>").
  */
 export function findGitRoot(startPath: string, fileSystem: FileSystem = defaultFs): string | null {
   if (!startPath) return null
@@ -64,14 +65,19 @@ export function findGitRoot(startPath: string, fileSystem: FileSystem = defaultF
       visited.add(current)
 
       const gitDir = path.join(current, '.git')
-      // console.log('Checking', gitDir) // Debug
-      if (fileSystem.existsSync(gitDir) && fileSystem.statSync(gitDir).isDirectory()) {
-        return current
+      if (!fileSystem.existsSync(gitDir)) {
+        const parent = path.dirname(current)
+        if (parent === current) break
+        current = parent
+        continue
       }
 
-      const parent = path.dirname(current)
-      if (parent === current) break // Reached root
-      current = parent
+      // .git can be a directory (normal repo) or a file (worktree/submodule gitfile)
+      if (fileSystem.statSync(gitDir).isDirectory()) {
+        return current
+      }
+      // .git is a file -> gitfile (worktree or submodule); current is the repo root
+      return current
     }
   } catch (err) {
     console.error('findGitRoot error:', err)
@@ -83,16 +89,57 @@ export function findGitRoot(startPath: string, fileSystem: FileSystem = defaultF
 }
 
 /**
+ * Resolves the path to the main repo config for a given git root.
+ * If .git is a directory, returns root/.git/config.
+ * If .git is a file (worktree gitfile), reads gitdir and commondir to get the shared config path.
+ */
+function getConfigPath(
+  root: string,
+  fileSystem: FileSystem
+): string | null {
+  const gitPath = path.join(root, '.git')
+  if (!fileSystem.existsSync(gitPath)) return null
+
+  if (fileSystem.statSync(gitPath).isDirectory()) {
+    const configPath = path.join(root, '.git', 'config')
+    return fileSystem.existsSync(configPath) ? configPath : null
+  }
+
+  // .git is a file (gitfile) - worktree or submodule
+  try {
+    const content = fileSystem.readFileSync(gitPath, 'utf-8').trim()
+    const match = content.match(/^gitdir:\s*(.+)$/m)
+    if (!match) return null
+
+    let gitDir = match[1].trim()
+    if (!path.isAbsolute(gitDir)) {
+      gitDir = path.resolve(root, gitDir)
+    }
+
+    // In a worktree, commondir points to the main .git (relative to gitDir)
+    const commondirPath = path.join(gitDir, 'commondir')
+    if (!fileSystem.existsSync(commondirPath)) return null
+
+    const commondirContent = fileSystem.readFileSync(commondirPath, 'utf-8').trim()
+    const commonDir = path.resolve(gitDir, commondirContent)
+    const configPath = path.join(commonDir, 'config')
+    return fileSystem.existsSync(configPath) ? configPath : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Detects the git remote origin URL for a given path by reading .git/config.
- * Only works if the file exists locally.
+ * Only works if the file exists locally. Supports both normal repos and git worktrees.
  */
 export function detectGitRemote(cwd: string, fileSystem: FileSystem = defaultFs): string | null {
   const root = findGitRoot(cwd, fileSystem)
   if (!root) return null
 
   try {
-    const configPath = path.join(root, '.git', 'config')
-    if (!fileSystem.existsSync(configPath)) return null
+    const configPath = getConfigPath(root, fileSystem)
+    if (!configPath) return null
 
     const configContent = fileSystem.readFileSync(configPath, 'utf-8')
     const config = ini.parse(configContent)
