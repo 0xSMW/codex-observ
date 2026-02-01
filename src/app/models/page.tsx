@@ -63,7 +63,7 @@ export default function ModelsPage() {
               icon={<Cpu className="h-4 w-4 text-muted-foreground" />}
             />
             <KPIStatCard
-              title="Est. Total Cost"
+              title="Total Cost"
               value={formatCurrency(aggregates.totalCost)}
               icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
             />
