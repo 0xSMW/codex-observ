@@ -214,7 +214,9 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
   const breakdown: ToolCallsListResult['breakdown'] = { tools: [], failures: [] }
 
   if (tableExists(db, 'tool_call')) {
-      const toolBreakdownRows = db.prepare(`
+    const toolBreakdownRows = db
+      .prepare(
+        `
         SELECT 
           tool_name, 
           COUNT(*) as count,
@@ -225,9 +227,13 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
         GROUP BY tool_name
         ORDER BY count DESC
         LIMIT 20
-      `).all(...params) as Record<string, unknown>[]
+      `
+      )
+      .all(...params) as Record<string, unknown>[]
 
-      const failureRows = db.prepare(`
+    const failureRows = db
+      .prepare(
+        `
         SELECT 
           error,
           MAX(tool_name) as tool_example,
@@ -239,20 +245,22 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
         GROUP BY error
         ORDER BY count DESC
         LIMIT 10
-      `).all(...params) as Record<string, unknown>[]
+      `
+      )
+      .all(...params) as Record<string, unknown>[]
 
-      breakdown.tools = toolBreakdownRows.map(row => ({
-          tool: String(row.tool_name),
-          count: toNumber(row.count),
-          avgDurationMs: toNumber(row.avg_dur),
-          successRate: toNumber(row.count) > 0 ? toNumber(row.success_count) / toNumber(row.count) : 0
-      }))
+    breakdown.tools = toolBreakdownRows.map((row) => ({
+      tool: String(row.tool_name),
+      count: toNumber(row.count),
+      avgDurationMs: toNumber(row.avg_dur),
+      successRate: toNumber(row.count) > 0 ? toNumber(row.success_count) / toNumber(row.count) : 0,
+    }))
 
-      breakdown.failures = failureRows.map(row => ({
-          error: String(row.error),
-          count: toNumber(row.count),
-          tool: String(row.tool_example)
-      }))
+    breakdown.failures = failureRows.map((row) => ({
+      error: String(row.error),
+      count: toNumber(row.count),
+      tool: String(row.tool_example),
+    }))
   }
 
   return {
