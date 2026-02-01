@@ -11,7 +11,8 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
 import type { SessionDetailResponse } from '@/types/api'
 
-function successStatus(rate: number) {
+function successStatus(rate: number, toolCallCount: number) {
+  if (toolCallCount === 0) return 'unknown'
   if (rate >= 0.9) return 'ok'
   if (rate >= 0.7) return 'partial'
   return 'failed'
@@ -36,7 +37,7 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
         <CardHeader>
           <CardTitle className="text-base">Session overview</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
+        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-1 text-sm">
             <div className="text-xs uppercase text-muted-foreground">Session ID</div>
             <div className="font-medium">{session.id}</div>
@@ -48,6 +49,14 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
           <div className="space-y-1 text-sm">
             <div className="text-xs uppercase text-muted-foreground">Provider</div>
             <div className="font-medium">{session.modelProvider ?? '—'}</div>
+          </div>
+          <div className="space-y-1 text-sm">
+            <div className="text-xs uppercase text-muted-foreground">Originator</div>
+            <div className="font-medium">{session.originator ?? '—'}</div>
+          </div>
+          <div className="space-y-1 text-sm">
+            <div className="text-xs uppercase text-muted-foreground">CLI version</div>
+            <div className="font-medium">{session.cliVersion ?? '—'}</div>
           </div>
           <div className="space-y-1 text-sm">
             <div className="text-xs uppercase text-muted-foreground">Git</div>
@@ -88,8 +97,14 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
             <CardTitle className="text-sm">Tool success</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-semibold tabular-nums">
-            {formatPercent(stats.successRate)}
-            <StatusBadge status={successStatus(stats.successRate)} />
+            {stats.toolCallCount === 0 ? '—' : formatPercent(stats.successRate)}
+            <StatusBadge
+              status={
+                stats.toolCallCount === 0
+                  ? 'n/a'
+                  : successStatus(stats.successRate, stats.toolCallCount)
+              }
+            />
           </CardContent>
         </Card>
       </div>
@@ -122,8 +137,8 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                   <TableCell className="text-right tabular-nums">
                     {formatCompactNumber(call.outputTokens)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {call.durationMs == null ? '—' : formatDuration(call.durationMs)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -149,8 +164,10 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
               <TableRow>
                 <TableHead>Tool</TableHead>
                 <TableHead>Command</TableHead>
+                <TableHead className="text-right">Exit</TableHead>
                 <TableHead className="text-right">Status</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
+                <TableHead className="max-w-[180px]">Error</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -160,17 +177,26 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                   <TableCell className="text-xs text-muted-foreground">
                     {call.command ?? '—'}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {call.exitCode !== null ? call.exitCode : '—'}
+                  </TableCell>
                   <TableCell className="text-right">
                     <StatusBadge status={call.status} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {call.durationMs == null ? '—' : formatDuration(call.durationMs)}
+                  </TableCell>
+                  <TableCell
+                    className="max-w-[180px] truncate text-xs text-muted-foreground"
+                    title={call.error ?? undefined}
+                  >
+                    {call.error ?? '—'}
                   </TableCell>
                 </TableRow>
               ))}
               {data.toolCalls.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                     No tool calls recorded.
                   </TableCell>
                 </TableRow>
