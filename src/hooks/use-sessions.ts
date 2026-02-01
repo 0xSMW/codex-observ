@@ -13,6 +13,7 @@ export type SessionsQuery = {
   query?: string
   models?: string[]
   providers?: string[]
+  project?: string
   range?: DateRange
 }
 
@@ -27,6 +28,7 @@ export function useSessions(query: SessionsQuery) {
     if (query.query) search.set('search', query.query)
     if (query.models?.length) search.set('models', query.models.join(','))
     if (query.providers?.length) search.set('providers', query.providers.join(','))
+    if (query.project) search.set('project', query.project)
     if (query.range?.from) search.set('startDate', query.range.from.toISOString())
     if (query.range?.to) search.set('endDate', query.range.to.toISOString())
     return search.toString()
