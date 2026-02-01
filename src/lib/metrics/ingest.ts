@@ -2,6 +2,7 @@ import 'server-only'
 
 import { getDatabase, tableExists } from './db'
 import { Pagination } from './pagination'
+import { backfillSessionProjects } from '@/lib/ingestion/backfill-session-projects'
 import { ingestAll, ingestIncremental, type IngestResult } from '@/lib/ingestion'
 
 export interface IngestListOptions {
@@ -146,6 +147,11 @@ export async function runIngest(
   ingestStatus.status = 'running'
   try {
     const result = mode === 'full' ? await ingestAll() : await ingestIncremental()
+    try {
+      backfillSessionProjects()
+    } catch (backfillError) {
+      console.error('backfillSessionProjects failed', backfillError)
+    }
     ingestStatus.lastRun = Date.now()
     ingestStatus.lastResult = result
     return result
