@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
 import {
   Activity,
   Calendar,
@@ -10,13 +9,23 @@ import {
   FolderGit2,
   Gauge,
   MessageSquare,
-  PanelLeft,
   RefreshCw,
   TerminalSquare,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
 import { Button } from '@/components/ui/button'
+import {
+  Sidebar as ShadcnSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants'
@@ -35,18 +44,8 @@ const iconMap = {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.localStorage.getItem('sidebar-collapsed') === 'true'
-  })
   const { status } = useLiveUpdates()
   const { lastSyncedAt, triggerSync, isSyncing } = useSyncStatus()
-
-  const handleToggle = () => {
-    const next = !collapsed
-    setCollapsed(next)
-    window.localStorage.setItem('sidebar-collapsed', String(next))
-  }
 
   const lastSyncedDate = lastSyncedAt ? new Date(lastSyncedAt) : null
   const connectionLabel =
@@ -58,84 +57,58 @@ export function Sidebar() {
         ? 'bg-amber-500'
         : 'bg-rose-500'
 
-  const widthClass = collapsed ? 'w-16' : 'w-64'
-
   return (
-    <>
-      {/* Spacer reserves layout space so main content isn't covered */}
-      <div className={cn('hidden shrink-0 md:block', widthClass)} aria-hidden />
-      <aside
-        className={cn(
-          'bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed left-0 top-0 z-20 hidden h-screen select-none flex-col md:flex',
-          widthClass
-        )}
-      >
-        <div className="flex items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <Activity className="h-4 w-4" aria-hidden />
-            </div>
-            {!collapsed && (
-              <div>
-                <p className="text-sm font-semibold">Codex Observe</p>
-                <p className="text-xs text-sidebar-foreground/70">Local insights</p>
+    <ShadcnSidebar collapsible="icon">
+      <SidebarHeader className="p-4 group-data-[collapsible=icon]:!p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              className="md:h-8 md:p-0 hover:bg-transparent cursor-default"
+            >
+              <div className="flex w-full items-center gap-2">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                  <Activity className="size-4" />
+                </div>
+                <div className="grid flex-1 text-left text-sm leading-tight text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+                  <span className="truncate font-semibold">Codex Observe</span>
+                  <span className="truncate text-xs text-sidebar-foreground/70">
+                    Local insights
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleToggle}
-            className="hidden md:inline-flex"
-          >
-            <PanelLeft className="h-4 w-4" />
-            <span className="sr-only">Toggle sidebar</span>
-          </Button>
-        </div>
-
-        <nav className="flex-1 space-y-1 px-2">
-          {NAV_ITEMS.map((item) => {
-            const Icon = iconMap[item.icon as keyof typeof iconMap]
-            const active = pathname === item.href
-            const link = (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {!collapsed && <span>{item.title}</span>}
-              </Link>
-            )
-
-            if (collapsed) {
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {NAV_ITEMS.map((item) => {
+              const Icon = iconMap[item.icon as keyof typeof iconMap]
+              const active = pathname === item.href
               return (
-                <Tooltip key={item.href} delayDuration={0}>
-                  <TooltipTrigger asChild>{link}</TooltipTrigger>
-                  <TooltipContent side="right">{item.title}</TooltipContent>
-                </Tooltip>
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+                    <Link href={item.href}>
+                      <Icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               )
-            }
-
-            return link
-          })}
-        </nav>
-
-        <div className="border-t border-sidebar-border">
-          {!collapsed && (
-            <div className="border-b border-sidebar-border px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">Theme</p>
-              <div className="mt-2">
-                <ThemeToggle />
-              </div>
-            </div>
-          )}
-          <div className={cn('space-y-3 p-4', collapsed && 'hidden')}>
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="p-0">
+        <div className="hidden group-data-[state=expanded]:block">
+          <div className="border-t border-sidebar-border px-4 py-3">
+            <p className="mb-2 text-xs uppercase tracking-wide text-sidebar-foreground/60">Theme</p>
+            <ThemeToggle />
+          </div>
+          <div className="space-y-3 p-4">
             <div>
               <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
                 Connection
@@ -175,7 +148,8 @@ export function Sidebar() {
             </div>
           </div>
         </div>
-      </aside>
-    </>
+      </SidebarFooter>
+      <SidebarRail />
+    </ShadcnSidebar>
   )
 }
