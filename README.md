@@ -55,6 +55,12 @@ pnpm ingest:smoke
 pnpm log:smoke
 ```
 
+E2E API tests (builds app, starts server, validates all API endpoints):
+
+```bash
+pnpm test:e2e
+```
+
 ## Notes
 
 - This app is designed to run locally and read from your `~/.codex` directory.
