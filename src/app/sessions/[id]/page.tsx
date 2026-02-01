@@ -17,8 +17,17 @@ export default function SessionDetailPage() {
   }
 
   if (error && !data) {
+    const isNotFound =
+      error.message?.toLowerCase().includes('not found') || error.message?.includes('404')
     return (
-      <ErrorState description="We couldn’t load this session. Try refreshing." onRetry={refresh} />
+      <ErrorState
+        description={
+          isNotFound
+            ? 'Session not found. It may have been deleted, or the link may be incorrect. Open Sessions and pick a session from the list.'
+            : (error.message ?? "We couldn't load this session. Try refreshing.")
+        }
+        onRetry={refresh}
+      />
     )
   }
 
