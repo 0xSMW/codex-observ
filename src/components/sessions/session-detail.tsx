@@ -12,7 +12,7 @@ import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/consta
 import type { SessionDetailResponse } from '@/types/api'
 
 function successStatus(rate: number, toolCallCount: number) {
-  if (toolCallCount === 0) return 'unknown'
+  if (toolCallCount === 0) return 'ok' // No tools run = nothing to fail
   if (rate >= 0.9) return 'ok'
   if (rate >= 0.7) return 'partial'
   return 'failed'
@@ -98,13 +98,7 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-2xl font-semibold tabular-nums">
             {stats.toolCallCount === 0 ? '—' : formatPercent(stats.successRate)}
-            <StatusBadge
-              status={
-                stats.toolCallCount === 0
-                  ? 'n/a'
-                  : successStatus(stats.successRate, stats.toolCallCount)
-              }
-            />
+            <StatusBadge status={successStatus(stats.successRate, stats.toolCallCount)} />
           </CardContent>
         </Card>
       </div>
@@ -137,8 +131,8 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                   <TableCell className="text-right tabular-nums">
                     {formatCompactNumber(call.outputTokens)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {call.durationMs == null ? '—' : formatDuration(call.durationMs)}
+                  <TableCell className="text-right tabular-nums">
+                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -159,12 +153,12 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
           <CardTitle className="text-base">Tool calls</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>Tool</TableHead>
-                <TableHead>Command</TableHead>
-                <TableHead className="text-right">Exit</TableHead>
+                <TableHead className="w-28">Tool</TableHead>
+                <TableHead className="min-w-0 max-w-[280px]">Command</TableHead>
+                <TableHead className="text-right w-14">Exit</TableHead>
                 <TableHead className="text-right">Status</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
                 <TableHead className="max-w-[180px]">Error</TableHead>
@@ -173,9 +167,12 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
             <TableBody>
               {data.toolCalls.items.map((call) => (
                 <TableRow key={call.id}>
-                  <TableCell>{call.toolName}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {call.command ?? '—'}
+                  <TableCell className="font-medium">{call.toolName}</TableCell>
+                  <TableCell
+                    className="min-w-0 max-w-[280px] truncate text-xs text-muted-foreground"
+                    title={call.command ?? undefined}
+                  >
+                    <span className="block truncate">{call.command ?? '—'}</span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {call.exitCode !== null ? call.exitCode : '—'}
@@ -183,8 +180,8 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                   <TableCell className="text-right">
                     <StatusBadge status={call.status} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">
-                    {call.durationMs == null ? '—' : formatDuration(call.durationMs)}
+                  <TableCell className="text-right tabular-nums">
+                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                   <TableCell
                     className="max-w-[180px] truncate text-xs text-muted-foreground"
