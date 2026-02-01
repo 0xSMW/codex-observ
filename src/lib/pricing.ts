@@ -1,6 +1,7 @@
 /**
  * Model pricing from LiteLLM's model_prices_and_context_window.json.
  * Fetches and caches pricing data; computes estimated cost per model call.
+ * Cached input uses cache_read_input_token_cost from LiteLLM when present.
  */
 
 import fs from 'fs'
@@ -114,10 +115,12 @@ export function getPricingForModel(
   const inputCost = Number(entry.input_cost_per_token)
   const outputCost = Number(entry.output_cost_per_token)
   if (!Number.isFinite(inputCost) || !Number.isFinite(outputCost)) return null
+
   const cacheRead =
     Number(entry.cache_read_input_token_cost) ??
     Number(entry.cache_creation_input_token_cost) ??
     inputCost
+
   return {
     inputCostPerToken: inputCost,
     outputCostPerToken: outputCost,
