@@ -10,7 +10,7 @@ export const NAV_ITEMS: NavItem[] = [
   { title: 'Sessions', href: '/sessions', icon: 'MessageSquare', description: 'Session history' },
   { title: 'Tools', href: '/tools', icon: 'TerminalSquare', description: 'Tool call analytics' },
   { title: 'Models', href: '/models', icon: 'Cpu', description: 'Models & providers' },
-  { title: 'Activity', href: '/activity', icon: 'Calendar', description: 'Daily activity' },
+  { title: 'YTD', href: '/activity', icon: 'Calendar', description: 'Daily activity for year' },
 ]
 
 export const CHART_COLORS = {
