@@ -14,7 +14,7 @@ export function ToolUsageChart({ data }: ToolUsageChartProps) {
   if (!data || data.length === 0) return null
 
   const chartConfig = {
-    count: { label: 'Calls', color: 'hsl(var(--chart-1))' },
+    count: { label: 'Calls', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   const chartData = [...data].sort((a, b) => b.count - a.count).slice(0, 10)
@@ -66,7 +66,7 @@ export function ToolFailureChart({ data }: FailureChartProps) {
   if (!data || data.length === 0) return null
 
   const chartConfig = {
-    count: { label: 'Errors', color: 'hsl(var(--chart-5))' },
+    count: { label: 'Errors', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   const chartData = [...data].sort((a, b) => b.count - a.count).slice(0, 10)
