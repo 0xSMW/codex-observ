@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'
 
 export const DEFAULT_HEADERS: HeadersInit = {
   'Cache-Control': 'no-store, max-age=0',
-};
+}
 
 export function jsonOk(data: unknown, init: ResponseInit = {}): NextResponse {
-  const headers = { ...DEFAULT_HEADERS, ...(init.headers ?? {}) };
-  return NextResponse.json(data, { ...init, headers });
+  const headers = { ...DEFAULT_HEADERS, ...(init.headers ?? {}) }
+  return NextResponse.json(data, { ...init, headers })
 }
 
 export function jsonError(
@@ -15,6 +15,6 @@ export function jsonError(
   status = 400,
   init: ResponseInit = {}
 ): NextResponse {
-  const headers = { ...DEFAULT_HEADERS, ...(init.headers ?? {}) };
-  return NextResponse.json({ error: message, code }, { status, ...init, headers });
+  const headers = { ...DEFAULT_HEADERS, ...(init.headers ?? {}) }
+  return NextResponse.json({ error: message, code }, { status, ...init, headers })
 }

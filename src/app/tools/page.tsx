@@ -1,14 +1,21 @@
-"use client"
+'use client'
 
-import { TerminalSquare, Timer, CheckCircle2, AlertTriangle } from "lucide-react"
+import { TerminalSquare, Timer, CheckCircle2, AlertTriangle } from 'lucide-react'
 
-import { useToolCalls } from "@/hooks/use-tool-calls"
-import { KpiGrid } from "@/components/dashboard/kpi-grid"
-import { ChartSkeleton, KpiSkeleton } from "@/components/shared/loading-skeleton"
-import { ErrorState } from "@/components/shared/error-state"
-import { StatusBadge } from "@/components/shared/status-badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { formatCompactNumber, formatDuration, formatPercent } from "@/lib/constants"
+import { useToolCalls } from '@/hooks/use-tool-calls'
+import { KpiGrid } from '@/components/dashboard/kpi-grid'
+import { ChartSkeleton, KpiSkeleton } from '@/components/shared/loading-skeleton'
+import { ErrorState } from '@/components/shared/error-state'
+import { StatusBadge } from '@/components/shared/status-badge'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
 
 export default function ToolsPage() {
   const { data, error, isLoading, refresh } = useToolCalls()
@@ -18,33 +25,33 @@ export default function ToolsPage() {
   const kpiItems = summary
     ? [
         {
-          label: "Success rate",
+          label: 'Success rate',
           value: summary.successRate,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <CheckCircle2 className="h-4 w-4" />,
           isPercent: true,
         },
         {
-          label: "Avg duration",
+          label: 'Avg duration',
           value: summary.avgDurationMs,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <Timer className="h-4 w-4" />,
           formatValue: formatDuration,
         },
         {
-          label: "Total calls",
+          label: 'Total calls',
           value: summary.total,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <TerminalSquare className="h-4 w-4" />,
         },
         {
-          label: "Failures",
+          label: 'Failures',
           value: summary.failed,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <AlertTriangle className="h-4 w-4" />,
         },
       ]
@@ -61,10 +68,7 @@ export default function ToolsPage() {
       )}
 
       {error && !data && (
-        <ErrorState
-          description="We couldn’t load tool calls. Try refreshing."
-          onRetry={refresh}
-        />
+        <ErrorState description="We couldn’t load tool calls. Try refreshing." onRetry={refresh} />
       )}
 
       {data && <KpiGrid items={kpiItems} />}
@@ -87,12 +91,10 @@ export default function ToolsPage() {
                 <TableRow key={call.id} className="hover:bg-muted/40">
                   <TableCell className="font-medium">{call.toolName}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {call.command ?? "—"}
+                    {call.command ?? '—'}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatDuration(
-                      call.durationMs === null ? Number.NaN : call.durationMs
-                    )}
+                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                   <TableCell className="text-right">
                     <StatusBadge status={call.status} />
@@ -109,8 +111,8 @@ export default function ToolsPage() {
             </TableBody>
           </Table>
           <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-            Success rate: {formatPercent(summary?.successRate ?? 0)} ·{" "}
-            Average duration: {formatDuration(summary?.avgDurationMs ?? 0)} ·{" "}
+            Success rate: {formatPercent(summary?.successRate ?? 0)} · Average duration:{' '}
+            {formatDuration(summary?.avgDurationMs ?? 0)} ·{' '}
             {formatCompactNumber(summary?.total ?? 0)} total calls
           </div>
         </div>

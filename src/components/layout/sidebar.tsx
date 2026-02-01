@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import {
   Calendar,
   Cpu,
@@ -11,14 +11,14 @@ import {
   PanelLeft,
   RefreshCw,
   TerminalSquare,
-} from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+} from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { cn } from "@/lib/utils"
-import { NAV_ITEMS } from "@/lib/constants"
-import { useLiveUpdates } from "@/hooks/use-live-updates"
+import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
+import { NAV_ITEMS } from '@/lib/constants'
+import { useLiveUpdates } from '@/hooks/use-live-updates'
 
 const iconMap = {
   Gauge,
@@ -32,8 +32,8 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false
-    return window.localStorage.getItem("sidebar-collapsed") === "true"
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem('sidebar-collapsed') === 'true'
   })
   const [now, setNow] = useState(() => new Date())
   const { status, lastUpdate } = useLiveUpdates()
@@ -47,7 +47,7 @@ export function Sidebar() {
   const handleToggle = () => {
     const next = !collapsed
     setCollapsed(next)
-    window.localStorage.setItem("sidebar-collapsed", String(next))
+    window.localStorage.setItem('sidebar-collapsed', String(next))
   }
 
   const handleRefresh = () => {
@@ -57,23 +57,19 @@ export function Sidebar() {
 
   const displayUpdate = manualUpdate ?? lastUpdate
   const connectionLabel =
-    status === "connected"
-      ? "Connected"
-      : status === "connecting"
-      ? "Connecting"
-      : "Disconnected"
+    status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting' : 'Disconnected'
   const statusColor =
-    status === "connected"
-      ? "bg-emerald-500"
-      : status === "connecting"
-      ? "bg-amber-500"
-      : "bg-rose-500"
+    status === 'connected'
+      ? 'bg-emerald-500'
+      : status === 'connecting'
+        ? 'bg-amber-500'
+        : 'bg-rose-500'
 
   return (
     <aside
       className={cn(
-        "bg-sidebar text-sidebar-foreground border-r border-sidebar-border hidden h-screen flex-col md:flex",
-        collapsed ? "w-16" : "w-64"
+        'bg-sidebar text-sidebar-foreground border-r border-sidebar-border hidden h-screen flex-col md:flex',
+        collapsed ? 'w-16' : 'w-64'
       )}
     >
       <div className="flex items-center justify-between px-4 py-4">
@@ -108,10 +104,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent/60"
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60'
               )}
             >
               <Icon className="h-4 w-4" />
@@ -133,13 +129,11 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-4">
-        <div className={cn("space-y-3", collapsed && "hidden")}> 
+        <div className={cn('space-y-3', collapsed && 'hidden')}>
           <div>
-            <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
-              Connection
-            </p>
+            <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">Connection</p>
             <div className="mt-2 flex items-center gap-2 text-sm">
-              <span className={cn("h-2 w-2 rounded-full", statusColor)} />
+              <span className={cn('h-2 w-2 rounded-full', statusColor)} />
               {connectionLabel}
             </div>
           </div>
@@ -148,23 +142,21 @@ export function Sidebar() {
               Last updated
             </p>
             <p className="mt-1 text-sm">
-              {displayUpdate
-                ? formatDistanceToNow(displayUpdate, { addSuffix: true })
-                : "—"}
+              {displayUpdate ? formatDistanceToNow(displayUpdate, { addSuffix: true }) : '—'}
             </p>
           </div>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className={cn("mt-3 w-full", collapsed && "px-0")}
+          className={cn('mt-3 w-full', collapsed && 'px-0')}
           onClick={handleRefresh}
         >
           <RefreshCw className="mr-2 h-4 w-4" />
-          {!collapsed && "Refresh"}
+          {!collapsed && 'Refresh'}
         </Button>
         <div className="mt-2 text-xs text-sidebar-foreground/50">
-          Updated {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          Updated {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
     </aside>

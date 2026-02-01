@@ -1,87 +1,87 @@
-'use client';
+'use client'
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react'
 
-type LiveStatus = 'connecting' | 'connected' | 'disconnected';
+type LiveStatus = 'connecting' | 'connected' | 'disconnected'
 
 export function useLiveUpdates(): {
-  status: LiveStatus;
-  lastUpdate: Date | null;
+  status: LiveStatus
+  lastUpdate: Date | null
 } {
-  const [status, setStatus] = useState<LiveStatus>('connecting');
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const reconnectAttempts = useRef(0);
+  const [status, setStatus] = useState<LiveStatus>('connecting')
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const reconnectAttempts = useRef(0)
 
   useEffect(() => {
-    let eventSource: EventSource | null = null;
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let stopped = false;
+    let eventSource: EventSource | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let stopped = false
 
     const parsePayload = (event: MessageEvent) => {
       if (!event?.data) {
-        return null;
+        return null
       }
       try {
-        return JSON.parse(event.data as string);
+        return JSON.parse(event.data as string)
       } catch {
-        return null;
+        return null
       }
-    };
+    }
 
     const connect = () => {
       if (stopped) {
-        return;
+        return
       }
 
-      setStatus('connecting');
-      eventSource = new EventSource('/api/events');
+      setStatus('connecting')
+      eventSource = new EventSource('/api/events')
 
       eventSource.onopen = () => {
-        setStatus('connected');
-        reconnectAttempts.current = 0;
-      };
+        setStatus('connected')
+        reconnectAttempts.current = 0
+      }
 
       const markUpdate = () => {
-        setLastUpdate(new Date());
-      };
+        setLastUpdate(new Date())
+      }
 
       eventSource.addEventListener('ingest', (event) => {
-        const payload = parsePayload(event);
-        const status = payload?.status as string | undefined;
+        const payload = parsePayload(event)
+        const status = payload?.status as string | undefined
         if (!status || status === 'complete' || status === 'skipped' || status === 'error') {
-          markUpdate();
+          markUpdate()
         }
-      });
-      eventSource.addEventListener('metrics', markUpdate);
+      })
+      eventSource.addEventListener('metrics', markUpdate)
 
       eventSource.onerror = () => {
         if (eventSource) {
-          eventSource.close();
+          eventSource.close()
         }
-        setStatus('disconnected');
+        setStatus('disconnected')
 
         if (stopped) {
-          return;
+          return
         }
 
-        const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
-        reconnectAttempts.current += 1;
-        reconnectTimer = setTimeout(connect, delay);
-      };
-    };
+        const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000)
+        reconnectAttempts.current += 1
+        reconnectTimer = setTimeout(connect, delay)
+      }
+    }
 
-    connect();
+    connect()
 
     return () => {
-      stopped = true;
+      stopped = true
       if (reconnectTimer) {
-        clearTimeout(reconnectTimer);
+        clearTimeout(reconnectTimer)
       }
       if (eventSource) {
-        eventSource.close();
+        eventSource.close()
       }
-    };
-  }, []);
+    }
+  }, [])
 
-  return { status, lastUpdate };
+  return { status, lastUpdate }
 }

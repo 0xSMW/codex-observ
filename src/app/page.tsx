@@ -1,23 +1,23 @@
-"use client"
+'use client'
 
-import { Cpu, Gauge, Layers, TerminalSquare, Zap } from "lucide-react"
+import { Cpu, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
 
-import { useDateRange } from "@/hooks/use-date-range"
-import { useOverview } from "@/hooks/use-overview"
-import { ChartCard } from "@/components/dashboard/chart-card"
-import { KpiGrid } from "@/components/dashboard/kpi-grid"
-import { TokensChart } from "@/components/dashboard/tokens-chart"
-import { CacheChart } from "@/components/dashboard/cache-chart"
-import { CallsChart } from "@/components/dashboard/calls-chart"
-import { KpiSkeleton } from "@/components/shared/loading-skeleton"
-import { ErrorState } from "@/components/shared/error-state"
-import { EmptyState } from "@/components/shared/empty-state"
+import { useDateRange } from '@/hooks/use-date-range'
+import { useOverview } from '@/hooks/use-overview'
+import { ChartCard } from '@/components/dashboard/chart-card'
+import { KpiGrid } from '@/components/dashboard/kpi-grid'
+import { TokensChart } from '@/components/dashboard/tokens-chart'
+import { CacheChart } from '@/components/dashboard/cache-chart'
+import { CallsChart } from '@/components/dashboard/calls-chart'
+import { KpiSkeleton } from '@/components/shared/loading-skeleton'
+import { ErrorState } from '@/components/shared/error-state'
+import { EmptyState } from '@/components/shared/empty-state'
 
-function getTrend(delta: number | null) {
-  if (delta === null) return "neutral"
-  if (delta > 0) return "up"
-  if (delta < 0) return "down"
-  return "neutral"
+function getTrend(delta: number | null): 'neutral' | 'up' | 'down' {
+  if (delta === null) return 'neutral'
+  if (delta > 0) return 'up'
+  if (delta < 0) return 'down'
+  return 'neutral'
 }
 
 export default function OverviewPage() {
@@ -30,14 +30,14 @@ export default function OverviewPage() {
   const kpiItems = kpis
     ? [
         {
-          label: "Total tokens",
+          label: 'Total tokens',
           value: kpis.totalTokens.value,
           change: kpis.totalTokens.deltaPct ?? 0,
           trend: getTrend(kpis.totalTokens.delta),
           icon: <Layers className="h-4 w-4" />,
         },
         {
-          label: "Cache hit rate",
+          label: 'Cache hit rate',
           value: kpis.cacheHitRate.value,
           change: kpis.cacheHitRate.deltaPct ?? 0,
           trend: getTrend(kpis.cacheHitRate.delta),
@@ -45,28 +45,28 @@ export default function OverviewPage() {
           isPercent: true,
         },
         {
-          label: "Sessions",
+          label: 'Sessions',
           value: kpis.sessions.value,
           change: kpis.sessions.deltaPct ?? 0,
           trend: getTrend(kpis.sessions.delta),
           icon: <Gauge className="h-4 w-4" />,
         },
         {
-          label: "Model calls",
+          label: 'Model calls',
           value: kpis.modelCalls.value,
           change: kpis.modelCalls.deltaPct ?? 0,
           trend: getTrend(kpis.modelCalls.delta),
           icon: <Cpu className="h-4 w-4" />,
         },
         {
-          label: "Tool calls",
+          label: 'Tool calls',
           value: kpis.toolCalls.value,
           change: kpis.toolCalls.deltaPct ?? 0,
           trend: getTrend(kpis.toolCalls.delta),
           icon: <TerminalSquare className="h-4 w-4" />,
         },
         {
-          label: "Tool success rate",
+          label: 'Tool success rate',
           value: kpis.successRate.value,
           change: kpis.successRate.deltaPct ?? 0,
           trend: getTrend(kpis.successRate.delta),
@@ -122,10 +122,7 @@ export default function OverviewPage() {
               >
                 <CacheChart data={series} />
               </ChartCard>
-              <ChartCard
-                title="Model calls"
-                description="Total model invocations per day"
-              >
+              <ChartCard title="Model calls" description="Total model invocations per day">
                 <CallsChart data={series} />
               </ChartCard>
             </div>

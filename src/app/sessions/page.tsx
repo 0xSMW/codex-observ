@@ -1,17 +1,17 @@
-"use client"
+'use client'
 
-import { useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-import { useDateRange } from "@/hooks/use-date-range"
-import { useSessions } from "@/hooks/use-sessions"
-import { useModels } from "@/hooks/use-models"
-import { useProviders } from "@/hooks/use-providers"
-import { SessionFilters, type SessionFiltersValue } from "@/components/sessions/session-filters"
-import { SessionsTable } from "@/components/sessions/sessions-table"
-import { TableSkeleton } from "@/components/shared/loading-skeleton"
-import { ErrorState } from "@/components/shared/error-state"
-import { Button } from "@/components/ui/button"
+import { useDateRange } from '@/hooks/use-date-range'
+import { useSessions } from '@/hooks/use-sessions'
+import { useModels } from '@/hooks/use-models'
+import { useProviders } from '@/hooks/use-providers'
+import { SessionFilters, type SessionFiltersValue } from '@/components/sessions/session-filters'
+import { SessionsTable } from '@/components/sessions/sessions-table'
+import { TableSkeleton } from '@/components/shared/loading-skeleton'
+import { ErrorState } from '@/components/shared/error-state'
+import { Button } from '@/components/ui/button'
 
 const PAGE_SIZE = 20
 
@@ -19,17 +19,17 @@ export default function SessionsPage() {
   const { range } = useDateRange()
   const [page, setPage] = useState(1)
   const [filters, setFilters] = useState<SessionFiltersValue>({
-    search: "",
-    model: "all",
-    provider: "all",
+    search: '',
+    model: 'all',
+    provider: 'all',
   })
 
   const query = {
     page,
     pageSize: PAGE_SIZE,
     query: filters.search || undefined,
-    models: filters.model !== "all" ? [filters.model] : undefined,
-    providers: filters.provider !== "all" ? [filters.provider] : undefined,
+    models: filters.model !== 'all' ? [filters.model] : undefined,
+    providers: filters.provider !== 'all' ? [filters.provider] : undefined,
     range,
   }
 
@@ -74,10 +74,7 @@ export default function SessionsPage() {
       {isLoading && !data && <TableSkeleton rows={8} />}
 
       {error && !data && (
-        <ErrorState
-          description="We couldn’t load sessions. Try refreshing."
-          onRetry={refresh}
-        />
+        <ErrorState description="We couldn’t load sessions. Try refreshing." onRetry={refresh} />
       )}
 
       {data && <SessionsTable sessions={data.sessions} />}

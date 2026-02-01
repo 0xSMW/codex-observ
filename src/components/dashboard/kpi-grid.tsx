@@ -1,4 +1,4 @@
-import { KpiCard, type KpiCardProps } from "@/components/dashboard/kpi-card"
+import { KpiCard, type KpiCardProps } from '@/components/dashboard/kpi-card'
 
 export function KpiGrid({ items }: { items: KpiCardProps[] }) {
   return (

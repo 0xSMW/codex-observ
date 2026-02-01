@@ -1,13 +1,13 @@
-"use client"
+'use client'
 
-import { Input } from "@/components/ui/input"
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select'
 
 export type SessionFiltersValue = {
   search: string
@@ -32,15 +32,10 @@ export function SessionFilters({
         <Input
           placeholder="Search by cwd, branch, or originator"
           value={value.search}
-          onChange={(event) =>
-            onChange({ ...value, search: event.target.value })
-          }
+          onChange={(event) => onChange({ ...value, search: event.target.value })}
         />
       </div>
-      <Select
-        value={value.model}
-        onValueChange={(model) => onChange({ ...value, model })}
-      >
+      <Select value={value.model} onValueChange={(model) => onChange({ ...value, model })}>
         <SelectTrigger className="w-full lg:w-48">
           <SelectValue placeholder="All models" />
         </SelectTrigger>
@@ -53,10 +48,7 @@ export function SessionFilters({
           ))}
         </SelectContent>
       </Select>
-      <Select
-        value={value.provider}
-        onValueChange={(provider) => onChange({ ...value, provider })}
-      >
+      <Select value={value.provider} onValueChange={(provider) => onChange({ ...value, provider })}>
         <SelectTrigger className="w-full lg:w-48">
           <SelectValue placeholder="All providers" />
         </SelectTrigger>

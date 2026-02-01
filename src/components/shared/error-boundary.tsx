@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import React from "react"
+import React from 'react'
 
-import { ErrorState } from "@/components/shared/error-state"
+import { ErrorState } from '@/components/shared/error-state'
 
 type ErrorBoundaryProps = {
   children: React.ReactNode
@@ -13,10 +13,7 @@ type ErrorBoundaryState = {
   error?: Error
 }
 
-export class ErrorBoundary extends React.Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false }
 
   static getDerivedStateFromError(error: Error) {
@@ -29,12 +26,7 @@ export class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return (
-        <ErrorState
-          description={this.state.error?.message}
-          onRetry={this.handleRetry}
-        />
-      )
+      return <ErrorState description={this.state.error?.message} onRetry={this.handleRetry} />
     }
 
     return this.props.children

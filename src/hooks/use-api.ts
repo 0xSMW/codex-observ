@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type ApiState<T> = {
   data: T | null
@@ -46,7 +46,7 @@ export function useApiData<T>(
         setIsFallback(false)
       })
       .catch((err: Error) => {
-        if (err.name === "AbortError") return
+        if (err.name === 'AbortError') return
         setError(err)
         if (fallback) {
           setData(fallback())
@@ -73,9 +73,8 @@ export function useApiData<T>(
   }, [fetchData, options?.refreshInterval])
 
   // Refetch when refreshKey changes (triggered by SSE events)
-  const refreshKeyValue = options?.refreshKey instanceof Date 
-    ? options.refreshKey.getTime() 
-    : options?.refreshKey
+  const refreshKeyValue =
+    options?.refreshKey instanceof Date ? options.refreshKey.getTime() : options?.refreshKey
   const prevRefreshKey = useRef(refreshKeyValue)
   useEffect(() => {
     if (refreshKeyValue && refreshKeyValue !== prevRefreshKey.current) {

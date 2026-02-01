@@ -1,13 +1,20 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { StatusBadge } from "@/components/shared/status-badge"
-import { formatCompactNumber, formatDuration, formatPercent } from "@/lib/constants"
-import type { SessionDetailResponse } from "@/types/api"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { StatusBadge } from '@/components/shared/status-badge'
+import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
+import type { SessionDetailResponse } from '@/types/api'
 
 function successStatus(rate: number) {
-  if (rate >= 0.9) return "ok"
-  if (rate >= 0.7) return "partial"
-  return "failed"
+  if (rate >= 0.9) return 'ok'
+  if (rate >= 0.7) return 'partial'
+  return 'failed'
 }
 
 export function SessionDetail({ data }: { data: SessionDetailResponse }) {
@@ -36,16 +43,16 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
           </div>
           <div className="space-y-1 text-sm">
             <div className="text-xs uppercase text-muted-foreground">Workspace</div>
-            <div className="font-medium">{session.cwd ?? "—"}</div>
+            <div className="font-medium">{session.cwd ?? '—'}</div>
           </div>
           <div className="space-y-1 text-sm">
             <div className="text-xs uppercase text-muted-foreground">Provider</div>
-            <div className="font-medium">{session.modelProvider ?? "—"}</div>
+            <div className="font-medium">{session.modelProvider ?? '—'}</div>
           </div>
           <div className="space-y-1 text-sm">
             <div className="text-xs uppercase text-muted-foreground">Git</div>
             <div className="font-medium">
-              {session.gitBranch ?? "—"} {session.gitCommit ? `· ${session.gitCommit}` : ""}
+              {session.gitBranch ?? '—'} {session.gitCommit ? `· ${session.gitCommit}` : ''}
             </div>
           </div>
         </CardContent>
@@ -105,7 +112,7 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
             <TableBody>
               {data.modelCalls.items.map((call) => (
                 <TableRow key={call.id}>
-                  <TableCell>{call.model ?? "—"}</TableCell>
+                  <TableCell>{call.model ?? '—'}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCompactNumber(call.inputTokens)}
                   </TableCell>
@@ -116,9 +123,7 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                     {formatCompactNumber(call.outputTokens)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatDuration(
-                      call.durationMs === null ? Number.NaN : call.durationMs
-                    )}
+                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -153,15 +158,13 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                 <TableRow key={call.id}>
                   <TableCell>{call.toolName}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {call.command ?? "—"}
+                    {call.command ?? '—'}
                   </TableCell>
                   <TableCell className="text-right">
                     <StatusBadge status={call.status} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatDuration(
-                      call.durationMs === null ? Number.NaN : call.durationMs
-                    )}
+                    {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -188,13 +191,11 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                 <span className="uppercase">{message.role}</span>
                 <span>{new Date(message.ts).toLocaleString()}</span>
               </div>
-              <p className="text-sm">{message.content ?? "—"}</p>
+              <p className="text-sm">{message.content ?? '—'}</p>
             </div>
           ))}
           {data.messages.items.length === 0 && (
-            <div className="text-center text-sm text-muted-foreground">
-              No messages recorded.
-            </div>
+            <div className="text-center text-sm text-muted-foreground">No messages recorded.</div>
           )}
         </CardContent>
       </Card>

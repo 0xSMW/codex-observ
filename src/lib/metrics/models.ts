@@ -1,57 +1,57 @@
-import { applyDateRange, DateRange } from './date-range';
-import { getDatabase, tableExists } from './db';
-import { Pagination } from './pagination';
+import { applyDateRange, DateRange } from './date-range'
+import { getDatabase, tableExists } from './db'
+import { Pagination } from './pagination'
 
 export interface ModelsListOptions {
-  range: DateRange;
-  pagination: Pagination;
+  range: DateRange
+  pagination: Pagination
 }
 
 export interface ModelSummary {
-  model: string;
-  callCount: number;
+  model: string
+  callCount: number
   tokens: {
-    input: number;
-    cachedInput: number;
-    output: number;
-    reasoning: number;
-    total: number;
-    cacheHitRate: number;
-  };
-  avgDurationMs: number;
+    input: number
+    cachedInput: number
+    output: number
+    reasoning: number
+    total: number
+    cacheHitRate: number
+  }
+  avgDurationMs: number
 }
 
 export interface ModelsListResult {
-  total: number;
-  models: ModelSummary[];
+  total: number
+  models: ModelSummary[]
 }
 
 function toNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+    return value
   }
-  const parsed = Number(value);
+  const parsed = Number(value)
   if (Number.isFinite(parsed)) {
-    return parsed;
+    return parsed
   }
-  return fallback;
+  return fallback
 }
 
 export function getModelsList(options: ModelsListOptions): ModelsListResult {
-  const db = getDatabase();
+  const db = getDatabase()
   if (!tableExists(db, 'model_call')) {
-    return { total: 0, models: [] };
+    return { total: 0, models: [] }
   }
 
-  const where: string[] = [];
-  const params: unknown[] = [];
-  applyDateRange('ts', options.range, where, params);
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const where: string[] = []
+  const params: unknown[] = []
+  applyDateRange('ts', options.range, where, params)
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
   const totalRow = db
     .prepare(`SELECT COUNT(DISTINCT model) AS total FROM model_call ${whereSql}`)
-    .get(params) as Record<string, unknown> | undefined;
-  const total = toNumber(totalRow?.total);
+    .get(params) as Record<string, unknown> | undefined
+  const total = toNumber(totalRow?.total)
 
   const rows = db
     .prepare(
@@ -73,11 +73,11 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
     .all([...params, options.pagination.limit, options.pagination.offset]) as Record<
     string,
     unknown
-  >[];
+  >[]
 
   const models = rows.map((row) => {
-    const inputTokens = toNumber(row.input_tokens);
-    const cachedInputTokens = toNumber(row.cached_input_tokens);
+    const inputTokens = toNumber(row.input_tokens)
+    const cachedInputTokens = toNumber(row.cached_input_tokens)
     return {
       model: String(row.model ?? 'unknown'),
       callCount: toNumber(row.call_count),
@@ -90,8 +90,8 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
         cacheHitRate: inputTokens > 0 ? cachedInputTokens / inputTokens : 0,
       },
       avgDurationMs: toNumber(row.avg_duration_ms),
-    } satisfies ModelSummary;
-  });
+    } satisfies ModelSummary
+  })
 
-  return { total, models };
+  return { total, models }
 }

@@ -1,58 +1,58 @@
-import { applyDateRange, DateRange, getPreviousRange } from './date-range';
-import { getDatabase, tableExists } from './db';
+import { applyDateRange, DateRange, getPreviousRange } from './date-range'
+import { getDatabase, tableExists } from './db'
 
 type KpiValue = {
-  value: number;
-  previous: number | null;
-  delta: number | null;
-  deltaPct: number | null;
-};
+  value: number
+  previous: number | null
+  delta: number | null
+  deltaPct: number | null
+}
 
 export interface OverviewSeriesPoint {
-  date: string;
-  inputTokens: number;
-  cachedInputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  totalTokens: number;
-  modelCalls: number;
-  cacheHitRate: number;
+  date: string
+  inputTokens: number
+  cachedInputTokens: number
+  outputTokens: number
+  reasoningTokens: number
+  totalTokens: number
+  modelCalls: number
+  cacheHitRate: number
 }
 
 export interface OverviewResponse {
   kpis: {
-    totalTokens: KpiValue;
-    cacheHitRate: KpiValue;
-    sessions: KpiValue;
-    modelCalls: KpiValue;
-    toolCalls: KpiValue;
-    successRate: KpiValue;
-    avgModelDurationMs: KpiValue;
-    avgToolDurationMs: KpiValue;
-  };
+    totalTokens: KpiValue
+    cacheHitRate: KpiValue
+    sessions: KpiValue
+    modelCalls: KpiValue
+    toolCalls: KpiValue
+    successRate: KpiValue
+    avgModelDurationMs: KpiValue
+    avgToolDurationMs: KpiValue
+  }
   series: {
-    daily: OverviewSeriesPoint[];
-  };
+    daily: OverviewSeriesPoint[]
+  }
 }
 
 function toNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+    return value
   }
-  const parsed = Number(value);
+  const parsed = Number(value)
   if (Number.isFinite(parsed)) {
-    return parsed;
+    return parsed
   }
-  return fallback;
+  return fallback
 }
 
 function kpi(value: number, previous: number | null): KpiValue {
   if (previous === null) {
-    return { value, previous, delta: null, deltaPct: null };
+    return { value, previous, delta: null, deltaPct: null }
   }
-  const delta = value - previous;
-  const deltaPct = previous === 0 ? null : delta / previous;
-  return { value, previous, delta, deltaPct };
+  const delta = value - previous
+  const deltaPct = previous === 0 ? null : delta / previous
+  return { value, previous, delta, deltaPct }
 }
 
 function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) {
@@ -65,12 +65,12 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
       totalTokens: 0,
       modelCalls: 0,
       avgDurationMs: 0,
-    };
+    }
   }
-  const where: string[] = [];
-  const params: unknown[] = [];
-  applyDateRange('ts', range, where, params);
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const where: string[] = []
+  const params: unknown[] = []
+  applyDateRange('ts', range, where, params)
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
   const row = db
     .prepare(
@@ -85,7 +85,7 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
       FROM model_call
       ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined;
+    .get(params) as Record<string, unknown> | undefined
 
   return {
     inputTokens: toNumber(row?.input_tokens),
@@ -95,31 +95,31 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
     totalTokens: toNumber(row?.total_tokens),
     modelCalls: toNumber(row?.model_calls),
     avgDurationMs: toNumber(row?.avg_duration_ms),
-  };
+  }
 }
 
 function querySessionsCount(db: ReturnType<typeof getDatabase>, range: DateRange): number {
   if (!tableExists(db, 'session')) {
-    return 0;
+    return 0
   }
-  const where: string[] = [];
-  const params: unknown[] = [];
-  applyDateRange('ts', range, where, params);
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-  const row = db
-    .prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`)
-    .get(params) as Record<string, unknown> | undefined;
-  return toNumber(row?.sessions);
+  const where: string[] = []
+  const params: unknown[] = []
+  applyDateRange('ts', range, where, params)
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  const row = db.prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`).get(params) as
+    | Record<string, unknown>
+    | undefined
+  return toNumber(row?.sessions)
 }
 
 function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) {
   if (!tableExists(db, 'tool_call')) {
-    return { toolCalls: 0, okCalls: 0, avgDurationMs: 0 };
+    return { toolCalls: 0, okCalls: 0, avgDurationMs: 0 }
   }
-  const where: string[] = [];
-  const params: unknown[] = [];
-  applyDateRange('start_ts', range, where, params);
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const where: string[] = []
+  const params: unknown[] = []
+  applyDateRange('start_ts', range, where, params)
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
   const row = db
     .prepare(
@@ -130,23 +130,26 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
       FROM tool_call
       ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined;
+    .get(params) as Record<string, unknown> | undefined
 
   return {
     toolCalls: toNumber(row?.tool_calls),
     okCalls: toNumber(row?.ok_calls),
     avgDurationMs: toNumber(row?.avg_duration_ms),
-  };
+  }
 }
 
-function queryDailySeries(db: ReturnType<typeof getDatabase>, range: DateRange): OverviewSeriesPoint[] {
+function queryDailySeries(
+  db: ReturnType<typeof getDatabase>,
+  range: DateRange
+): OverviewSeriesPoint[] {
   if (!tableExists(db, 'model_call')) {
-    return [];
+    return []
   }
-  const where: string[] = [];
-  const params: unknown[] = [];
-  applyDateRange('ts', range, where, params);
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const where: string[] = []
+  const params: unknown[] = []
+  applyDateRange('ts', range, where, params)
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
   const rows = db
     .prepare(
@@ -163,12 +166,12 @@ function queryDailySeries(db: ReturnType<typeof getDatabase>, range: DateRange):
       GROUP BY date
       ORDER BY date ASC`
     )
-    .all(params) as Record<string, unknown>[];
+    .all(params) as Record<string, unknown>[]
 
   return rows.map((row) => {
-    const inputTokens = toNumber(row.input_tokens);
-    const cachedInputTokens = toNumber(row.cached_input_tokens);
-    const cacheHitRate = inputTokens > 0 ? cachedInputTokens / inputTokens : 0;
+    const inputTokens = toNumber(row.input_tokens)
+    const cachedInputTokens = toNumber(row.cached_input_tokens)
+    const cacheHitRate = inputTokens > 0 ? cachedInputTokens / inputTokens : 0
     return {
       date: String(row.date ?? ''),
       inputTokens,
@@ -178,36 +181,31 @@ function queryDailySeries(db: ReturnType<typeof getDatabase>, range: DateRange):
       totalTokens: toNumber(row.total_tokens),
       modelCalls: toNumber(row.model_calls),
       cacheHitRate,
-    };
-  });
+    }
+  })
 }
 
 export function getOverview(range: DateRange): OverviewResponse {
-  const db = getDatabase();
-  const currentTokens = queryTokenTotals(db, range);
-  const currentSessions = querySessionsCount(db, range);
-  const currentTools = queryToolSummary(db, range);
+  const db = getDatabase()
+  const currentTokens = queryTokenTotals(db, range)
+  const currentSessions = querySessionsCount(db, range)
+  const currentTools = queryToolSummary(db, range)
 
-  const prevRange = getPreviousRange(range);
-  const prevTokens = prevRange ? queryTokenTotals(db, prevRange) : null;
-  const prevSessions = prevRange ? querySessionsCount(db, prevRange) : null;
-  const prevTools = prevRange ? queryToolSummary(db, prevRange) : null;
+  const prevRange = getPreviousRange(range)
+  const prevTokens = prevRange ? queryTokenTotals(db, prevRange) : null
+  const prevSessions = prevRange ? querySessionsCount(db, prevRange) : null
+  const prevTools = prevRange ? queryToolSummary(db, prevRange) : null
 
   const cacheHitRate =
-    currentTokens.inputTokens > 0
-      ? currentTokens.cachedInputTokens / currentTokens.inputTokens
-      : 0;
+    currentTokens.inputTokens > 0 ? currentTokens.cachedInputTokens / currentTokens.inputTokens : 0
   const prevCacheHitRate =
     prevTokens && prevTokens.inputTokens > 0
       ? prevTokens.cachedInputTokens / prevTokens.inputTokens
-      : null;
+      : null
 
-  const successRate =
-    currentTools.toolCalls > 0 ? currentTools.okCalls / currentTools.toolCalls : 0;
+  const successRate = currentTools.toolCalls > 0 ? currentTools.okCalls / currentTools.toolCalls : 0
   const prevSuccessRate =
-    prevTools && prevTools.toolCalls > 0
-      ? prevTools.okCalls / prevTools.toolCalls
-      : null;
+    prevTools && prevTools.toolCalls > 0 ? prevTools.okCalls / prevTools.toolCalls : null
 
   return {
     kpis: {
@@ -217,17 +215,11 @@ export function getOverview(range: DateRange): OverviewResponse {
       modelCalls: kpi(currentTokens.modelCalls, prevTokens?.modelCalls ?? null),
       toolCalls: kpi(currentTools.toolCalls, prevTools?.toolCalls ?? null),
       successRate: kpi(successRate, prevSuccessRate),
-      avgModelDurationMs: kpi(
-        currentTokens.avgDurationMs,
-        prevTokens?.avgDurationMs ?? null
-      ),
-      avgToolDurationMs: kpi(
-        currentTools.avgDurationMs,
-        prevTools?.avgDurationMs ?? null
-      ),
+      avgModelDurationMs: kpi(currentTokens.avgDurationMs, prevTokens?.avgDurationMs ?? null),
+      avgToolDurationMs: kpi(currentTools.avgDurationMs, prevTools?.avgDurationMs ?? null),
     },
     series: {
       daily: queryDailySeries(db, range),
     },
-  };
+  }
 }

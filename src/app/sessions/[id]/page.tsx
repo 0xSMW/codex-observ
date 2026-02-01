@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { useParams } from "next/navigation"
+import { useParams } from 'next/navigation'
 
-import { useSessionDetail } from "@/hooks/use-session-detail"
-import { SessionDetail } from "@/components/sessions/session-detail"
-import { TableSkeleton } from "@/components/shared/loading-skeleton"
-import { ErrorState } from "@/components/shared/error-state"
+import { useSessionDetail } from '@/hooks/use-session-detail'
+import { SessionDetail } from '@/components/sessions/session-detail'
+import { TableSkeleton } from '@/components/shared/loading-skeleton'
+import { ErrorState } from '@/components/shared/error-state'
 
 export default function SessionDetailPage() {
   const params = useParams<{ id: string }>()
@@ -18,10 +18,7 @@ export default function SessionDetailPage() {
 
   if (error && !data) {
     return (
-      <ErrorState
-        description="We couldn’t load this session. Try refreshing."
-        onRetry={refresh}
-      />
+      <ErrorState description="We couldn’t load this session. Try refreshing." onRetry={refresh} />
     )
   }
 

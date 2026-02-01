@@ -6,24 +6,24 @@ export type NavItem = {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { title: "Overview", href: "/", icon: "Gauge", description: "KPIs and trends" },
-  { title: "Sessions", href: "/sessions", icon: "MessageSquare", description: "Session history" },
-  { title: "Tools", href: "/tools", icon: "TerminalSquare", description: "Tool call analytics" },
-  { title: "Models", href: "/models", icon: "Cpu", description: "Models & providers" },
-  { title: "Activity", href: "/activity", icon: "Calendar", description: "Daily activity" },
+  { title: 'Overview', href: '/', icon: 'Gauge', description: 'KPIs and trends' },
+  { title: 'Sessions', href: '/sessions', icon: 'MessageSquare', description: 'Session history' },
+  { title: 'Tools', href: '/tools', icon: 'TerminalSquare', description: 'Tool call analytics' },
+  { title: 'Models', href: '/models', icon: 'Cpu', description: 'Models & providers' },
+  { title: 'Activity', href: '/activity', icon: 'Calendar', description: 'Daily activity' },
 ]
 
 export const CHART_COLORS = {
-  tokens: "var(--chart-1)",
-  calls: "var(--chart-2)",
-  cache: "var(--chart-3)",
-  success: "var(--chart-4)",
-  failure: "var(--chart-5)",
+  tokens: 'var(--chart-1)',
+  calls: 'var(--chart-2)',
+  cache: 'var(--chart-3)',
+  success: 'var(--chart-4)',
+  failure: 'var(--chart-5)',
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US")
-const compactFormatter = new Intl.NumberFormat("en-US", {
-  notation: "compact",
+const numberFormatter = new Intl.NumberFormat('en-US')
+const compactFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
   maximumFractionDigits: 1,
 })
 
@@ -40,7 +40,7 @@ export function formatPercent(value: number, digits = 1) {
 }
 
 export function formatDuration(ms: number) {
-  if (!Number.isFinite(ms)) return "—"
+  if (!Number.isFinite(ms)) return '—'
   if (ms < 1000) return `${Math.round(ms)}ms`
   const seconds = Math.round(ms / 1000)
   if (seconds < 60) return `${seconds}s`

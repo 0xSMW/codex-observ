@@ -1,19 +1,36 @@
-"use client"
+'use client'
 
-import { Cpu, Layers } from "lucide-react"
+import { Cpu, Layers } from 'lucide-react'
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ErrorState } from "@/components/shared/error-state"
-import { TableSkeleton } from "@/components/shared/loading-skeleton"
-import { useModels } from "@/hooks/use-models"
-import { useProviders } from "@/hooks/use-providers"
-import { formatCompactNumber, formatDuration, formatPercent } from "@/lib/constants"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ErrorState } from '@/components/shared/error-state'
+import { TableSkeleton } from '@/components/shared/loading-skeleton'
+import { useModels } from '@/hooks/use-models'
+import { useProviders } from '@/hooks/use-providers'
+import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
 
 export default function ModelsPage() {
-  const { data: modelsData, error: modelsError, isLoading: modelsLoading, refresh: refreshModels } = useModels()
-  const { data: providersData, error: providersError, isLoading: providersLoading, refresh: refreshProviders } = useProviders()
+  const {
+    data: modelsData,
+    error: modelsError,
+    isLoading: modelsLoading,
+    refresh: refreshModels,
+  } = useModels()
+  const {
+    data: providersData,
+    error: providersError,
+    isLoading: providersLoading,
+    refresh: refreshProviders,
+  } = useProviders()
 
   return (
     <Tabs defaultValue="models" className="space-y-6">
@@ -67,7 +84,10 @@ export default function ModelsPage() {
                   ))}
                   {modelsData.models.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                      <TableCell
+                        colSpan={5}
+                        className="py-8 text-center text-sm text-muted-foreground"
+                      >
                         No model calls recorded.
                       </TableCell>
                     </TableRow>
@@ -124,7 +144,10 @@ export default function ModelsPage() {
                   ))}
                   {providersData.providers.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                      <TableCell
+                        colSpan={5}
+                        className="py-8 text-center text-sm text-muted-foreground"
+                      >
                         No provider activity recorded.
                       </TableCell>
                     </TableRow>

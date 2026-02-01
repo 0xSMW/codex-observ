@@ -1,9 +1,11 @@
 # Codex Observability Micro App — Architecture + Plan
 
 ## Goal
+
 Build a lightweight, fast, local-only observability app that continuously visualizes Codex CLI usage from `~/.codex` with great UX.
 
 ## Core Metrics (must have)
+
 - Token usage (input, cached input, output, reasoning, total)
 - Cache utilization (cached_input / input) + trend
 - # of conversations (sessions)
@@ -17,12 +19,15 @@ Build a lightweight, fast, local-only observability app that continuously visual
 - Additional conversation details (project/cwd, model, provider, effort, approval policy)
 
 ## Non‑Goals (for v1)
+
 - Cloud sync or multi-device aggregation
 - Long-term archival beyond what Codex already stores
 - Full CLI command playback or transcript export UI
 
 ## Data Sources (local)
+
 Primary:
+
 - `~/.codex/sessions/**/rollout-*.jsonl` (session stream)
 - `~/.codex/history.jsonl` (first prompt timestamp)
 - `~/.codex/log/codex-tui.log` (tool call logs + background events + errors)
@@ -30,9 +35,11 @@ Primary:
 - `~/.codex/config.toml` (context about environment if needed)
 
 Optional:
+
 - `~/.codex/auth.json` (if user identity is present; do NOT store secrets)
 
 ## Data Notes / Reality Checks
+
 - "Users using Codex" is not explicitly stored in `sessions/*.jsonl`. If we want a user identifier, we can:
   - Default to local OS username (single-user machine).
   - Attempt to extract user identity from `auth.json` only if safe and not a secret (otherwise hash/omit).
@@ -42,7 +49,9 @@ Optional:
 - "Success rate of calls" and "user decisions (accept/reject)" are easiest from `codex-tui.log` (FunctionCall entries + BackgroundEvent failures). We will compute approximate pairing by timestamp + command signature if no explicit IDs exist.
 
 ## Architecture (lightweight, local-first)
+
 **Stack**
+
 - App: Next.js (App Router) for UI + API routes
 - UI: shadcn/ui components + Tailwind CSS v4
 - Storage: SQLite (via `better-sqlite3` or `bun:sqlite`) for fast local queries
@@ -50,6 +59,7 @@ Optional:
 - Live updates: file watchers + incremental ingestion + SSE or websocket endpoint
 
 **Process model**
+
 - Single Next.js server serves UI + API.
 - On startup, ingest existing data into SQLite.
 - Run a background watcher (within the server process) to tail JSONL/log files and incrementally update metrics.
@@ -60,17 +70,22 @@ Optional:
 Below is a concise, implementation-ready SQLite schema. All timestamps are Unix ms unless stated.
 
 ### `ingest_state`
+
 Tracks incremental ingestion per source file.
+
 - `path` TEXT **PK**
 - `byte_offset` INTEGER **NOT NULL**
 - `mtime_ms` INTEGER NULL
 - `updated_at` INTEGER **NOT NULL**
 
 Indexes:
+
 - `idx_ingest_state_updated_at` on (`updated_at`)
 
 ### `session`
+
 One record per Codex session file or `session_meta` block.
+
 - `id` TEXT **PK**
 - `ts` INTEGER **NOT NULL**
 - `cwd` TEXT NULL
@@ -84,26 +99,32 @@ One record per Codex session file or `session_meta` block.
 - `dedup_key` TEXT **NOT NULL**
 
 Indexes:
+
 - `idx_session_ts` on (`ts`)
 - `idx_session_dedup_key` **UNIQUE** on (`dedup_key`)
 
 ### `message`
+
 Minimal message envelope (content optional and opt‑in).
+
 - `id` TEXT **PK**
 - `session_id` TEXT **NOT NULL** → `session(id)`
-- `role` TEXT **NOT NULL**  -- “user” | “assistant” | “system”
+- `role` TEXT **NOT NULL** -- “user” | “assistant” | “system”
 - `ts` INTEGER **NOT NULL**
-- `content` TEXT NULL  -- store only if user opts in
+- `content` TEXT NULL -- store only if user opts in
 - `source_file` TEXT **NOT NULL**
 - `source_line` INTEGER **NOT NULL**
 - `dedup_key` TEXT **NOT NULL**
 
 Indexes:
+
 - `idx_message_session_ts` on (`session_id`, `ts`)
 - `idx_message_dedup_key` **UNIQUE** on (`dedup_key`)
 
 ### `model_call`
+
 Token_count events (one per model invocation/response).
+
 - `id` TEXT **PK**
 - `session_id` TEXT **NOT NULL** → `session(id)`
 - `ts` INTEGER **NOT NULL**
@@ -113,23 +134,26 @@ Token_count events (one per model invocation/response).
 - `output_tokens` INTEGER **NOT NULL**
 - `reasoning_tokens` INTEGER **NOT NULL**
 - `total_tokens` INTEGER **NOT NULL**
-- `duration_ms` INTEGER NULL  -- if present from event
+- `duration_ms` INTEGER NULL -- if present from event
 - `source_file` TEXT **NOT NULL**
 - `source_line` INTEGER **NOT NULL**
 - `dedup_key` TEXT **NOT NULL**
 
 Indexes:
+
 - `idx_model_call_session_ts` on (`session_id`, `ts`)
 - `idx_model_call_ts` on (`ts`)
 - `idx_model_call_dedup_key` **UNIQUE** on (`dedup_key`)
 
 ### `tool_call`
+
 Normalized, merged tool execution record (derived from `tool_call_event`).
+
 - `id` TEXT **PK**
-- `session_id` TEXT NULL  -- may be null if log doesn’t include session
-- `tool_name` TEXT **NOT NULL**  -- e.g., `exec_command`
-- `command` TEXT NULL  -- best‑effort representation
-- `status` TEXT **NOT NULL**  -- “ok” | “failed” | “unknown”
+- `session_id` TEXT NULL -- may be null if log doesn’t include session
+- `tool_name` TEXT **NOT NULL** -- e.g., `exec_command`
+- `command` TEXT NULL -- best‑effort representation
+- `status` TEXT **NOT NULL** -- “ok” | “failed” | “unknown”
 - `start_ts` INTEGER **NOT NULL**
 - `end_ts` INTEGER NULL
 - `duration_ms` INTEGER NULL
@@ -143,6 +167,7 @@ Normalized, merged tool execution record (derived from `tool_call_event`).
 - `dedup_key` TEXT **NOT NULL**
 
 Indexes:
+
 - `idx_tool_call_ts` on (`start_ts`)
 - `idx_tool_call_session_ts` on (`session_id`, `start_ts`)
 - `idx_tool_call_status` on (`status`)
@@ -150,13 +175,15 @@ Indexes:
 - `idx_tool_call_dedup_key` **UNIQUE** on (`dedup_key`)
 
 ### `tool_call_event`
+
 Raw tool log events (fine‑grained for correlation + debugging).
+
 - `id` TEXT **PK**
 - `session_id` TEXT NULL
 - `tool_name` TEXT **NOT NULL**
-- `event_type` TEXT **NOT NULL**  -- “start” | “stdout” | “stderr” | “exit” | “failure”
+- `event_type` TEXT **NOT NULL** -- “start” | “stdout” | “stderr” | “exit” | “failure”
 - `ts` INTEGER **NOT NULL**
-- `payload` TEXT NULL  -- trimmed / redacted line
+- `payload` TEXT NULL -- trimmed / redacted line
 - `exit_code` INTEGER NULL
 - `source_file` TEXT **NOT NULL**
 - `source_line` INTEGER **NOT NULL**
@@ -164,27 +191,33 @@ Raw tool log events (fine‑grained for correlation + debugging).
 - `dedup_key` TEXT **NOT NULL**
 
 Indexes:
+
 - `idx_tool_event_ts` on (`ts`)
 - `idx_tool_event_session_ts` on (`session_id`, `ts`)
 - `idx_tool_event_corr_ts` on (`correlation_key`, `ts`)
 - `idx_tool_event_dedup_key` **UNIQUE** on (`dedup_key`)
 
 ### `daily_activity`
+
 Lightweight materialized rollup (optional, can be rebuilt).
-- `date` TEXT **PK**  -- YYYY‑MM‑DD local
+
+- `date` TEXT **PK** -- YYYY‑MM‑DD local
 - `message_count` INTEGER **NOT NULL**
 - `call_count` INTEGER **NOT NULL**
 - `token_total` INTEGER **NOT NULL**
 
 Indexes:
+
 - `idx_daily_activity_date` on (`date`)
 
 ### De‑dup key strategy
+
 - `dedup_key = sha256(source_file + ":" + source_line + ":" + stable_payload_hash)` (truncate to 16–24 hex chars).
 - Use `INSERT OR IGNORE` or `ON CONFLICT(dedup_key) DO NOTHING`.
 - Set `id = dedup_key` unless a native ID exists in the payload.
 
 ### Tool call correlation
+
 - `correlation_key` from call id if present; else hash of `tool_name + start_ts + command_hash + source_file`.
 - `event_type = start` creates or looks up `tool_call` with `start_ts`.
 - `event_type = exit` or `failure` sets `end_ts`, `exit_code`, `status`, `error`.
@@ -192,6 +225,7 @@ Indexes:
 - If `exit_code != 0`, mark `status = failed`.
 
 ### SQLite constraints & FKs
+
 - Enable FKs: `PRAGMA foreign_keys = ON`.
 - `message.session_id` → `session.id` (ON DELETE CASCADE)
 - `model_call.session_id` → `session.id` (ON DELETE CASCADE)
@@ -199,6 +233,7 @@ Indexes:
 - `tool_call_event.session_id` → `session.id` (ON DELETE SET NULL)
 
 ## Ingestion Pipeline
+
 1. Enumerate files in `~/.codex/sessions/YYYY/MM/DD/*.jsonl`.
 2. For each file, read incrementally using `ingest_state` offset.
 3. Parse JSON lines:
@@ -213,6 +248,7 @@ Indexes:
 5. Compute derived metrics on demand or via lightweight materialized tables.
 
 ## Metrics Definitions (clear + deterministic)
+
 - **Model calls**: count of `token_count` events.
 - **Token totals**: sum of token_count deltas, per model and per day.
 - **Cache utilization**: `cached_input_tokens / input_tokens` (guard divide-by-zero).
@@ -225,11 +261,13 @@ Indexes:
   - Otherwise: infer from tool call execution (executed = accepted). Show "estimated".
 
 ## Performance Targets
+
 - Cold start ingest: < 5s for 100k lines
 - Incremental ingest: < 100ms per new line burst
 - UI render: < 200ms per page
 
 ## Security & Privacy
+
 - Local-only data storage, no outbound telemetry.
 - Ignore/strip secrets (auth tokens, raw user prompts) unless user opts in.
 - .gitignore all local DB + cache files.
@@ -241,6 +279,7 @@ Indexes:
 ## Orchestrator (Agent 0) — Coordination & Integration
 
 ### Phase 1: Setup & Contracts
+
 - [ ] **Decision: Runtime** — Use Node.js (broader ecosystem, stable SQLite bindings)
 - [ ] **Decision: Chart library** — Use Recharts (React-native, composable, works well with shadcn)
 - [ ] **Create `src/lib/db/schema.ts`** — TypeScript types matching SQLite tables
@@ -249,6 +288,7 @@ Indexes:
 - [ ] **Document file ownership** — Assign files to agents to prevent conflicts
 
 ### Phase 2: Integration & Merge
+
 - [ ] **Review Agent A output** — Validate schema implementation and ingestion logic
 - [ ] **Review Agent B output** — Verify log parsing accuracy with sample data
 - [ ] **Review Agent C output** — Test API endpoints return correct types
@@ -258,6 +298,7 @@ Indexes:
 - [ ] **Final integration test** — End-to-end flow from data ingestion to UI render
 
 ### Orchestration Best Practices (apply during execution)
+
 - Single owner per file: avoid parallel edits to the same path.
 - Orchestrator owns cross-cutting files: `package.json`, `globals.css`, `next.config.ts`, app shell, and shared types.
 - Agents must keep scope tight: max 2–3 deliverables and no “bonus refactors”.
@@ -267,6 +308,7 @@ Indexes:
 - Use fixtures early: UI agent can stub with JSON fixtures until APIs are ready.
 
 ### File Ownership Map (no overlap)
+
 - **Orchestrator**: `package.json`, `pnpm-lock.yaml`, `src/app/layout.tsx`, `src/app/globals.css`, `src/types/**`
 - **Agent A**: `src/lib/db/**`, `src/lib/ingestion/**`, `scripts/ingest-smoke.ts`
 - **Agent B**: `src/lib/identity/**`, `src/lib/ingestion/log-parser.ts`, `scripts/log-parse-smoke.ts`
@@ -279,9 +321,11 @@ Indexes:
 ## Agent A — Core Ingestion + Schema
 
 ### Scope
+
 Implement the SQLite database layer and JSONL ingestion pipeline for session data.
 
 ### Files to Create/Edit
+
 ```
 src/lib/db/
 ├── index.ts           # Database singleton + connection
@@ -308,6 +352,7 @@ src/lib/ingestion/
 ### Tasks (Detailed)
 
 #### Database Setup
+
 - [ ] Install `better-sqlite3` and `@types/better-sqlite3`
 - [ ] Create database singleton in `src/lib/db/index.ts`
   - Lazy initialization on first access
@@ -321,6 +366,7 @@ src/lib/ingestion/
   - Run migrations on startup if version mismatch
 
 #### File Discovery
+
 - [ ] Implement `discoverSessionFiles(codexHome: string): string[]`
   - Recursively scan `~/.codex/sessions/YYYY/MM/DD/`
   - Return files sorted by modification time (oldest first for consistent ingestion)
@@ -329,6 +375,7 @@ src/lib/ingestion/
 - [ ] Add file existence caching to avoid repeated fs.stat calls
 
 #### Incremental JSONL Reader
+
 - [ ] Implement `IngestState` table operations
   - `getOffset(path: string): number`
   - `setOffset(path: string, offset: number): void`
@@ -339,6 +386,7 @@ src/lib/ingestion/
 - [ ] Handle file rotation (detect if file shrunk, reset offset)
 
 #### Parsers
+
 - [ ] `parseSessionMeta(line: object)` → `Session` record
   - Extract: id, timestamp, cwd, originator, cli_version, model_provider
   - Extract git info if present: branch, commit
@@ -352,12 +400,14 @@ src/lib/ingestion/
   - Update model/provider info for subsequent events in same session
 
 #### Deduplication
+
 - [ ] Implement `generateRecordId(filePath: string, lineNumber: number, payload: object): string`
   - Use SHA-256 hash truncated to 16 chars
   - Ensure deterministic across re-runs
 - [ ] Add upsert logic to all insert operations (INSERT OR REPLACE)
 
 #### Main Ingestion Orchestrator
+
 - [ ] Implement `ingestAll(codexHome: string): IngestResult`
   - Discover files → read incrementally → parse → insert → update offset
   - Return stats: `{ filesProcessed, linesIngested, errors }`
@@ -365,6 +415,7 @@ src/lib/ingestion/
 - [ ] Implement batch inserts (100 records per transaction) for performance
 
 #### Fixtures & Smoke Tests
+
 - [ ] Add `src/lib/ingestion/__fixtures__/` with small JSONL samples:
   - `session_meta` line
   - `response_item` line
@@ -374,24 +425,26 @@ src/lib/ingestion/
 - [ ] Add `pnpm ingest:smoke` script for quick validation
 
 ### Output Format
+
 ```typescript
 // src/lib/db/index.ts exports
-export function getDb(): Database;
-export function closeDb(): void;
+export function getDb(): Database
+export function closeDb(): void
 
 // src/lib/ingestion/index.ts exports
-export async function ingestAll(codexHome?: string): Promise<IngestResult>;
-export async function ingestIncremental(codexHome?: string): Promise<IngestResult>;
+export async function ingestAll(codexHome?: string): Promise<IngestResult>
+export async function ingestIncremental(codexHome?: string): Promise<IngestResult>
 
 interface IngestResult {
-  filesProcessed: number;
-  linesIngested: number;
-  errors: Array<{ file: string; line: number; error: string }>;
-  durationMs: number;
+  filesProcessed: number
+  linesIngested: number
+  errors: Array<{ file: string; line: number; error: string }>
+  durationMs: number
 }
 ```
 
 ### Validation Criteria
+
 - [ ] Cold start ingestion completes in < 5s for 100k lines
 - [ ] Re-running ingestion on same data produces identical DB state
 - [ ] Handles malformed JSON lines without crashing
@@ -402,9 +455,11 @@ interface IngestResult {
 ## Agent B — Logs + Tool-Call Analytics
 
 ### Scope
+
 Parse `codex-tui.log` to extract tool call data, success/failure rates, and user identity heuristics.
 
 ### Files to Create/Edit
+
 ```
 src/lib/ingestion/
 ├── log-parser.ts       # Main TUI log parser
@@ -426,18 +481,21 @@ src/lib/identity/
 ### Tasks (Detailed)
 
 #### ANSI Stripping
+
 - [ ] Implement `stripAnsi(text: string): string`
   - Remove all ANSI escape sequences (colors, cursor movement, etc.)
   - Use regex: `/\x1B\[[0-9;]*[A-Za-z]/g` and extended sequences
   - Preserve actual content and timestamps
 
 #### Log Line Parsing
+
 - [ ] Implement `parseLogLine(line: string): LogEvent | null`
   - Extract timestamp (format: `YYYY-MM-DD HH:MM:SS.mmm` or similar)
   - Identify event type from prefix patterns
   - Return structured object or null for irrelevant lines
 
 #### FunctionCall Parser
+
 - [ ] Parse lines matching `FunctionCall:` pattern
   - Extract: command/function name, arguments (if present)
   - Extract: timestamp, correlation ID (if present)
@@ -445,18 +503,21 @@ src/lib/identity/
 - [ ] Handle multi-line function calls (arguments may span lines)
 
 #### BackgroundEvent Parser
+
 - [ ] Parse lines matching `BackgroundEvent:` pattern
   - Identify failure events: "Execution failed", "Error", etc.
   - Extract: exit code, error message, stderr snippet
   - Correlate with preceding FunctionCall by timestamp proximity (< 5 min window)
 
 #### ToolCall Parser (Newer Format)
+
 - [ ] Parse lines matching `ToolCall: exec_command` pattern
   - Extract: command, arguments, working directory
   - Extract: status (pending/running/completed/failed)
   - Extract: duration if present
 
 #### Tool Call Correlation
+
 - [ ] Implement `correlateToolCalls(functionCalls: FunctionCall[], events: BackgroundEvent[]): ToolCallRecord[]`
   - Match start events to completion/failure events
   - Use timestamp + command signature for matching
@@ -464,6 +525,7 @@ src/lib/identity/
   - Calculate duration where possible
 
 #### User Identity Resolution
+
 - [ ] Implement `resolveUserIdentity(codexHome: string): UserIdentity`
   - Primary: OS username via `os.userInfo().username`
   - Secondary: Parse `auth.json` for safe fields only
@@ -472,6 +534,7 @@ src/lib/identity/
   - Return: `{ username: string, source: 'os' | 'auth' }`
 
 #### Terminal Type Detection
+
 - [ ] Implement `detectTerminalType(): TerminalInfo`
   - Read `TERM` environment variable
   - Read `TERM_PROGRAM` if available (iTerm2, Terminal.app, etc.)
@@ -479,6 +542,7 @@ src/lib/identity/
   - Return: `{ type: string, program: string | null }`
 
 #### Database Integration
+
 - [ ] Create `tool_call` insert/update operations
 - [ ] Create analytics queries:
   - `getToolCallSuccessRate(dateRange?): number`
@@ -487,6 +551,7 @@ src/lib/identity/
   - `getToolCallsByStatus(): Record<Status, number>`
 
 #### Fixtures & Validation
+
 - [ ] Add `src/lib/ingestion/__fixtures__/codex-tui.log` with representative lines:
   - `FunctionCall:` entries
   - `ToolCall: exec_command` entries
@@ -495,22 +560,24 @@ src/lib/identity/
 - [ ] Ensure ANSI stripping handles colorized prefixes and timestamps
 
 ### Output Format
+
 ```typescript
 // src/lib/ingestion/log-parser.ts exports
-export async function parseLogFile(logPath: string, fromOffset?: number): Promise<LogParseResult>;
+export async function parseLogFile(logPath: string, fromOffset?: number): Promise<LogParseResult>
 
 interface LogParseResult {
-  toolCalls: ToolCallRecord[];
-  newOffset: number;
-  errors: ParseError[];
+  toolCalls: ToolCallRecord[]
+  newOffset: number
+  errors: ParseError[]
 }
 
 // src/lib/identity/index.ts exports
-export function resolveUserIdentity(codexHome?: string): UserIdentity;
-export function detectTerminalType(): TerminalInfo;
+export function resolveUserIdentity(codexHome?: string): UserIdentity
+export function detectTerminalType(): TerminalInfo
 ```
 
 ### Validation Criteria
+
 - [ ] Correctly parses sample TUI log with various event types
 - [ ] ANSI stripping preserves all meaningful content
 - [ ] Tool call correlation accuracy > 90% on test data
@@ -521,9 +588,11 @@ export function detectTerminalType(): TerminalInfo;
 ## Agent C — Metrics API
 
 ### Scope
+
 Build all API endpoints that serve computed metrics to the frontend.
 
 ### Files to Create/Edit
+
 ```
 src/app/api/
 ├── overview/route.ts      # KPIs + time series
@@ -548,156 +617,169 @@ src/lib/metrics/
 ### Tasks (Detailed)
 
 #### API Route: `/api/overview`
+
 - [ ] Implement GET handler returning `OverviewResponse`
 - [ ] Query params: `startDate`, `endDate` (ISO strings, optional)
 - [ ] Response structure:
   ```typescript
   {
     kpis: {
-      totalTokens: number;
-      cachedTokens: number;
-      outputTokens: number;
-      cacheUtilization: number; // 0-1
-      sessionCount: number;
-      modelCallCount: number;
-      toolCallSuccessRate: number; // 0-1
-    };
+      totalTokens: number
+      cachedTokens: number
+      outputTokens: number
+      cacheUtilization: number // 0-1
+      sessionCount: number
+      modelCallCount: number
+      toolCallSuccessRate: number // 0-1
+    }
     timeSeries: {
-      tokens: Array<{ date: string; input: number; cached: number; output: number }>;
-      modelCalls: Array<{ date: string; count: number }>;
-      cacheUtilization: Array<{ date: string; rate: number }>;
-    };
-    lastUpdated: string; // ISO timestamp
+      tokens: Array<{ date: string; input: number; cached: number; output: number }>
+      modelCalls: Array<{ date: string; count: number }>
+      cacheUtilization: Array<{ date: string; rate: number }>
+    }
+    lastUpdated: string // ISO timestamp
   }
   ```
 - [ ] Add caching layer (recompute only if data changed)
 
 #### API Route: `/api/sessions`
+
 - [ ] Implement GET handler with pagination
 - [ ] Query params: `page`, `limit`, `sortBy`, `sortOrder`, `model`, `provider`, `search`
 - [ ] Response structure:
   ```typescript
   {
     sessions: Array<{
-      id: string;
-      timestamp: string;
-      project: string; // extracted from cwd
-      cwd: string;
-      model: string;
-      provider: string;
-      messageCount: number;
-      totalTokens: number;
-      duration: number | null;
-    }>;
+      id: string
+      timestamp: string
+      project: string // extracted from cwd
+      cwd: string
+      model: string
+      provider: string
+      messageCount: number
+      totalTokens: number
+      duration: number | null
+    }>
     pagination: {
-      page: number;
-      limit: number;
-      total: number;
-      totalPages: number;
-    };
+      page: number
+      limit: number
+      total: number
+      totalPages: number
+    }
   }
   ```
 - [ ] Implement full-text search on cwd/project
 
 #### API Route: `/api/sessions/[id]`
+
 - [ ] Implement GET handler for single session detail
 - [ ] Return: session metadata, all messages, all model calls, associated tool calls
 - [ ] Include computed session-level metrics
 
 #### API Route: `/api/models`
+
 - [ ] Implement GET handler returning model usage stats
 - [ ] Query params: `startDate`, `endDate`
 - [ ] Response structure:
   ```typescript
   {
     models: Array<{
-      name: string;
-      provider: string;
-      callCount: number;
-      totalTokens: number;
-      avgTokensPerCall: number;
-      cacheUtilization: number;
-      estimatedCost: number | null; // if pricing available
-    }>;
-    topModel: string;
-    totalModels: number;
+      name: string
+      provider: string
+      callCount: number
+      totalTokens: number
+      avgTokensPerCall: number
+      cacheUtilization: number
+      estimatedCost: number | null // if pricing available
+    }>
+    topModel: string
+    totalModels: number
   }
   ```
 
 #### API Route: `/api/providers`
+
 - [ ] Implement GET handler returning provider breakdown
 - [ ] Response includes: call counts, token totals, model lists per provider
 
 #### API Route: `/api/tool-calls`
+
 - [ ] Implement GET handler returning tool call analytics
 - [ ] Query params: `startDate`, `endDate`, `status`, `command`
 - [ ] Response structure:
   ```typescript
   {
     summary: {
-      total: number;
-      successful: number;
-      failed: number;
-      unknown: number;
-      successRate: number;
-      avgDuration: number | null;
-    };
+      total: number
+      successful: number
+      failed: number
+      unknown: number
+      successRate: number
+      avgDuration: number | null
+    }
     topFailures: Array<{
-      command: string;
-      count: number;
-      lastError: string;
-      lastOccurred: string;
-    }>;
+      command: string
+      count: number
+      lastError: string
+      lastOccurred: string
+    }>
     byDay: Array<{
-      date: string;
-      total: number;
-      successful: number;
-      failed: number;
-    }>;
+      date: string
+      total: number
+      successful: number
+      failed: number
+    }>
   }
   ```
 
 #### API Route: `/api/activity`
+
 - [ ] Implement GET handler returning activity heatmap data
 - [ ] Query params: `year` (default: current year)
 - [ ] Response: 365 days of activity counts (GitHub-style)
   ```typescript
   {
-    year: number;
+    year: number
     days: Array<{
-      date: string; // YYYY-MM-DD
-      messageCount: number;
-      modelCalls: number;
-      tokens: number;
-      level: 0 | 1 | 2 | 3 | 4; // intensity bucket
-    }>;
-    maxDaily: number;
+      date: string // YYYY-MM-DD
+      messageCount: number
+      modelCalls: number
+      tokens: number
+      level: 0 | 1 | 2 | 3 | 4 // intensity bucket
+    }>
+    maxDaily: number
   }
   ```
 
 #### API Route: `/api/ingest`
+
 - [ ] Implement POST handler to trigger manual re-ingestion
 - [ ] Implement GET handler to return current ingest status
 - [ ] Response: `{ status: 'idle' | 'running', lastRun: string, lastResult: IngestResult }`
 
 #### Metrics Computation Layer
+
 - [ ] Implement efficient SQL queries with proper indexing
 - [ ] Add query result caching with TTL (invalidate on new data)
 - [ ] Handle edge cases: no data, divide by zero, null values
 - [ ] Implement date range filtering consistently across all metrics
 
 #### Contract Tests
+
 - [ ] Add `scripts/api-smoke.ts` to call each endpoint and validate JSON shape
 - [ ] Add `src/types/api.ts` runtime guards (lightweight manual checks)
 - [ ] Ensure error responses use a consistent shape: `{ error, code }`
 
 ### Output Format
+
 All API routes should:
+
 - Return JSON with consistent error format: `{ error: string, code: string }`
 - Include `Cache-Control` headers for appropriate caching
 - Log query performance for debugging
 
 ### Validation Criteria
+
 - [ ] All endpoints return valid JSON matching TypeScript types
 - [ ] Pagination works correctly (no duplicates, correct totals)
 - [ ] Date filtering works across all endpoints
@@ -708,14 +790,17 @@ All API routes should:
 ## Agent D — UI/UX (High-Quality shadcn Implementation)
 
 ### Scope
+
 Build a beautiful, accessible, performant dashboard using shadcn/ui with dark/light/system theme support.
 
 ### Ownership & Boundaries
+
 - Owns only UI + hooks: `src/app/**`, `src/components/**`, `src/hooks/**`, and `src/lib/constants.ts`.
 - Do **not** modify ingestion, DB, or API logic (Agent A/B/C).
 - Cross-cutting styling changes in `src/app/globals.css` must be coordinated with Orchestrator.
 
 ### Execution Slices (order matters)
+
 1. **Shell + Navigation** — app shell, sidebar, header, theme toggle.
 2. **Overview Page** — KPI grid + primary charts (tokens, cache, calls).
 3. **Tables + Filters** — sessions list, tools list, pagination + filters.
@@ -724,6 +809,7 @@ Build a beautiful, accessible, performant dashboard using shadcn/ui with dark/li
 6. **Performance Pass** — dynamic import for charts, memoization, render budgets.
 
 ### Files to Create/Edit
+
 ```
 src/
 ├── app/
@@ -778,6 +864,7 @@ src/
 ```
 
 ### shadcn/ui Setup Tasks
+
 - [ ] Initialize shadcn/ui: `pnpm dlx shadcn@latest init`
   - Style: New York (refined, professional look)
   - Base color: Zinc (professional, works well for dashboards)
@@ -803,8 +890,10 @@ src/
 ### Theme System (Dark/Light/System)
 
 #### Implementation Tasks
+
 - [ ] Install and configure `next-themes`
 - [ ] Create `src/components/providers/theme-provider.tsx`:
+
   ```typescript
   'use client'
   import { ThemeProvider as NextThemesProvider } from 'next-themes'
@@ -822,6 +911,7 @@ src/
     )
   }
   ```
+
 - [ ] Create `src/components/layout/theme-toggle.tsx`:
   - Three-state toggle: Light / Dark / System
   - Use `DropdownMenu` from shadcn for selection
@@ -834,15 +924,16 @@ src/
 - [ ] Configure Tailwind for dark mode (already set via shadcn init)
 
 #### Color Palette Guidelines
+
 - [ ] Use shadcn CSS variables for all colors (automatically theme-aware)
 - [ ] Define chart colors in `globals.css` with dark mode variants:
   ```css
   :root {
-    --chart-1: 221 83% 53%;     /* Blue - Primary data */
-    --chart-2: 142 71% 45%;     /* Green - Success/positive */
-    --chart-3: 38 92% 50%;      /* Amber - Warning/cached */
-    --chart-4: 262 83% 58%;     /* Purple - Secondary metric */
-    --chart-5: 0 84% 60%;       /* Red - Error/failure */
+    --chart-1: 221 83% 53%; /* Blue - Primary data */
+    --chart-2: 142 71% 45%; /* Green - Success/positive */
+    --chart-3: 38 92% 50%; /* Amber - Warning/cached */
+    --chart-4: 262 83% 58%; /* Purple - Secondary metric */
+    --chart-5: 0 84% 60%; /* Red - Error/failure */
   }
   .dark {
     --chart-1: 217 91% 60%;
@@ -861,6 +952,7 @@ src/
 ### UI Best Practices for Exceptional Quality
 
 #### Non‑negotiables (shadcn quality bar)
+
 - Use shadcn primitives as intended: `Card`, `Tabs`, `Table`, `Badge`, `Popover`, `Tooltip`, `Sheet`.
 - Use `ChartContainer`, `ChartTooltip`, `ChartLegend` from shadcn chart component (no custom wrappers).
 - Never hardcode colors; use CSS variables and tokenized classes (`text-foreground`, `bg-card`, etc.).
@@ -869,6 +961,7 @@ src/
 - Ensure dark/light parity: every visual choice must look correct in both.
 
 #### Layout & Spacing
+
 - [ ] Use consistent spacing scale (Tailwind 4px base): `space-y-4`, `gap-6`, `p-6`
 - [ ] Maintain visual hierarchy with proper heading sizes:
   - Page title: `text-2xl font-semibold tracking-tight`
@@ -880,6 +973,7 @@ src/
 - [ ] Use consistent border radius: shadcn's `rounded-lg` (0.5rem)
 
 #### Typography
+
 - [ ] Use system font stack (Inter preferred if available)
 - [ ] KPI values: `text-2xl sm:text-3xl font-bold tabular-nums tracking-tight`
 - [ ] Secondary/muted text: `text-muted-foreground text-sm`
@@ -890,22 +984,19 @@ src/
 #### Component Patterns
 
 ##### KPI Cards
+
 - [ ] Consistent card structure with proper spacing:
   ```tsx
   <Card className="hover:shadow-md transition-shadow">
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">
-        Total Tokens
-      </CardTitle>
+      <CardTitle className="text-sm font-medium text-muted-foreground">Total Tokens</CardTitle>
       <Coins className="h-4 w-4 text-muted-foreground" />
     </CardHeader>
     <CardContent>
       <div className="text-2xl font-bold tabular-nums">1,234,567</div>
       <p className="text-xs text-muted-foreground mt-1">
-        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-          +12.5%
-        </span>{" "}
-        from last period
+        <span className="text-emerald-600 dark:text-emerald-400 font-medium">+12.5%</span> from last
+        period
       </p>
     </CardContent>
   </Card>
@@ -915,6 +1006,7 @@ src/
 - [ ] Use icons from `lucide-react` consistently (4x4 for card headers)
 
 ##### Data Tables
+
 - [ ] Use `@tanstack/react-table` for feature-rich tables
 - [ ] Implement virtual scrolling with `@tanstack/react-virtual` for 100+ rows
 - [ ] Table styling:
@@ -937,6 +1029,7 @@ src/
 - [ ] Empty state: centered message with icon and helpful action
 
 ##### Charts (shadcn/ui + Recharts)
+
 - [ ] Use `ChartContainer` with Recharts inside (shadcn chart composition)
 - [ ] Use `ChartTooltip` + `ChartTooltipContent`, `ChartLegend` + `ChartLegendContent`
 - [ ] Responsive container with fixed aspect ratio:
@@ -978,49 +1071,74 @@ src/
 - [ ] Custom tooltip matching shadcn style:
   ```tsx
   const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload) return null;
+    if (!active || !payload) return null
     return (
       <div className="rounded-lg border bg-background p-3 shadow-md">
         <p className="text-sm font-medium">{label}</p>
         {payload.map((entry) => (
           <p key={entry.name} className="text-sm text-muted-foreground">
-            {entry.name}: <span className="font-medium text-foreground">{entry.value.toLocaleString()}</span>
+            {entry.name}:{' '}
+            <span className="font-medium text-foreground">{entry.value.toLocaleString()}</span>
           </p>
         ))}
       </div>
-    );
-  };
+    )
+  }
   ```
 - [ ] Use gradient fills for area charts (more polished look)
 - [ ] Consistent axis styling (no axis lines, subtle tick marks)
 
 ##### Activity Heatmap
+
 - [ ] GitHub-contribution style grid implementation:
   - 53 columns (weeks) × 7 rows (days of week)
   - Cell size: 10-12px with 2px gap
   - Rounded corners: `rounded-sm`
 - [ ] Color intensity levels (5 levels: 0-4):
+
   ```css
   /* Light mode */
-  .level-0 { background: hsl(var(--muted)); }
-  .level-1 { background: hsl(142 76% 80%); }
-  .level-2 { background: hsl(142 76% 60%); }
-  .level-3 { background: hsl(142 76% 45%); }
-  .level-4 { background: hsl(142 76% 30%); }
-  
+  .level-0 {
+    background: hsl(var(--muted));
+  }
+  .level-1 {
+    background: hsl(142 76% 80%);
+  }
+  .level-2 {
+    background: hsl(142 76% 60%);
+  }
+  .level-3 {
+    background: hsl(142 76% 45%);
+  }
+  .level-4 {
+    background: hsl(142 76% 30%);
+  }
+
   /* Dark mode */
-  .dark .level-0 { background: hsl(var(--muted)); }
-  .dark .level-1 { background: hsl(142 76% 20%); }
-  .dark .level-2 { background: hsl(142 76% 30%); }
-  .dark .level-3 { background: hsl(142 76% 40%); }
-  .dark .level-4 { background: hsl(142 76% 50%); }
+  .dark .level-0 {
+    background: hsl(var(--muted));
+  }
+  .dark .level-1 {
+    background: hsl(142 76% 20%);
+  }
+  .dark .level-2 {
+    background: hsl(142 76% 30%);
+  }
+  .dark .level-3 {
+    background: hsl(142 76% 40%);
+  }
+  .dark .level-4 {
+    background: hsl(142 76% 50%);
+  }
   ```
+
 - [ ] Tooltip on hover showing: date, message count, token count
 - [ ] Legend showing intensity scale
 - [ ] Month labels along the top
 - [ ] Day-of-week labels on the left (Mon, Wed, Fri)
 
 #### Loading & Empty States
+
 - [ ] Skeleton loading that matches final layout exactly:
   ```tsx
   <Card>
@@ -1056,9 +1174,7 @@ src/
       <AlertCircle className="h-8 w-8 text-destructive" />
     </div>
     <h3 className="text-lg font-semibold">Failed to load data</h3>
-    <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-      {error.message}
-    </p>
+    <p className="mt-2 text-sm text-muted-foreground max-w-sm">{error.message}</p>
     <Button className="mt-4" onClick={retry}>
       Try Again
     </Button>
@@ -1066,6 +1182,7 @@ src/
   ```
 
 #### Accessibility
+
 - [ ] All interactive elements have visible focus styles (shadcn default ring)
 - [ ] Color contrast meets WCAG AA (4.5:1 for normal text, 3:1 for large text)
 - [ ] Don't rely solely on color for meaning (use icons, patterns, labels)
@@ -1076,31 +1193,35 @@ src/
 - [ ] Screen reader announcements for live data updates
 
 #### Animations & Transitions
+
 - [ ] Subtle, purposeful animations only:
+
   ```tsx
   // Page transitions
-  className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500"
-  
+  className = 'animate-in fade-in-0 slide-in-from-bottom-4 duration-500'
+
   // Card hover
-  className="transition-shadow hover:shadow-md"
-  
+  className = 'transition-shadow hover:shadow-md'
+
   // Data update highlight
-  className="transition-colors duration-300"
+  className = 'transition-colors duration-300'
   ```
+
 - [ ] Respect reduced motion preference:
   ```tsx
-  className="motion-safe:animate-pulse"
+  className = 'motion-safe:animate-pulse'
   ```
 - [ ] No animations longer than 300ms for UI feedback
 - [ ] Loading spinners for async operations > 200ms
 
 #### Performance
+
 - [ ] Use `next/dynamic` for heavy components (charts):
   ```tsx
   const TokensChart = dynamic(() => import('@/components/dashboard/tokens-chart'), {
     ssr: false,
     loading: () => <ChartSkeleton />,
-  });
+  })
   ```
 - [ ] Implement `React.memo` for expensive renders
 - [ ] Debounce filter/search inputs (300ms)
@@ -1109,7 +1230,7 @@ src/
   const { data, error, isLoading, mutate } = useSWR('/api/overview', fetcher, {
     refreshInterval: 30000, // Auto-refresh every 30s
     revalidateOnFocus: true,
-  });
+  })
   ```
 - [ ] Prefetch adjacent pages in pagination
 - [ ] Image optimization with `next/image` for any icons/images
@@ -1117,6 +1238,7 @@ src/
 ### Detailed Component Tasks
 
 #### App Shell (`src/components/layout/app-shell.tsx`)
+
 - [ ] Use shadcn sidebar component as base
 - [ ] Collapsible sidebar on desktop (icon-only mode with tooltip labels)
 - [ ] Sheet-based sidebar on mobile (hamburger trigger in header)
@@ -1131,6 +1253,7 @@ src/
   - Connection status indicator (SSE status)
 
 #### Header (`src/components/layout/header.tsx`)
+
 - [ ] Sticky header: `sticky top-0 z-40 bg-background/95 backdrop-blur`
 - [ ] Contains:
   - Mobile menu trigger (hamburger)
@@ -1140,6 +1263,7 @@ src/
 - [ ] Responsive: hide certain elements on mobile
 
 #### Theme Toggle (`src/components/layout/theme-toggle.tsx`)
+
 - [ ] Three-state dropdown using shadcn DropdownMenu:
   ```tsx
   <DropdownMenu>
@@ -1151,15 +1275,15 @@ src/
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem onClick={() => setTheme("light")}>
+      <DropdownMenuItem onClick={() => setTheme('light')}>
         <Sun className="mr-2 h-4 w-4" />
         Light
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => setTheme("dark")}>
+      <DropdownMenuItem onClick={() => setTheme('dark')}>
         <Moon className="mr-2 h-4 w-4" />
         Dark
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => setTheme("system")}>
+      <DropdownMenuItem onClick={() => setTheme('system')}>
         <Monitor className="mr-2 h-4 w-4" />
         System
       </DropdownMenuItem>
@@ -1170,6 +1294,7 @@ src/
 - [ ] Keyboard accessible
 
 #### Overview Dashboard (`src/app/page.tsx`)
+
 - [ ] 4-column KPI grid (1 col mobile, 2 col tablet, 4 col desktop)
 - [ ] KPIs: Total Tokens, Cache Hit Rate, Sessions, Success Rate
 - [ ] Each KPI shows: value, trend indicator, comparison to previous period
@@ -1182,6 +1307,7 @@ src/
 - [ ] Quick navigation cards to detailed views
 
 #### Sessions Table (`src/components/sessions/sessions-table.tsx`)
+
 - [ ] Columns: Time, Project, Model, Messages, Tokens, Duration
 - [ ] Features:
   - Sortable columns (click header to sort)
@@ -1198,6 +1324,7 @@ src/
   - Page navigation with total count
 
 #### Session Detail (`src/app/sessions/[id]/page.tsx`)
+
 - [ ] Header: Project name, timestamp, model badge, duration
 - [ ] Metadata cards: Token breakdown, message count, tool calls
 - [ ] Timeline view of messages (alternating user/assistant)
@@ -1206,6 +1333,7 @@ src/
 - [ ] Back navigation to sessions list
 
 #### Activity Heatmap (`src/app/activity/page.tsx`)
+
 - [ ] Full-width heatmap component
 - [ ] Year selector dropdown (last 3 years available)
 - [ ] Summary stats above heatmap:
@@ -1216,23 +1344,20 @@ src/
 - [ ] Tooltip on cell hover with detailed stats
 
 ### Data Fetching Hooks
+
 - [ ] Use SWR for all data fetching with consistent pattern:
   ```tsx
   export function useOverview(dateRange: DateRange) {
     const params = new URLSearchParams({
       startDate: dateRange.from.toISOString(),
       endDate: dateRange.to.toISOString(),
-    });
-    
-    return useSWR<OverviewResponse>(
-      `/api/overview?${params}`,
-      fetcher,
-      {
-        refreshInterval: 30000,
-        revalidateOnFocus: true,
-        keepPreviousData: true,
-      }
-    );
+    })
+
+    return useSWR<OverviewResponse>(`/api/overview?${params}`, fetcher, {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+      keepPreviousData: true,
+    })
   }
   ```
 - [ ] Implement error boundaries with retry UI
@@ -1248,12 +1373,14 @@ src/
   ```
 
 ### Output Format
+
 - All components properly typed with TypeScript (no `any`)
 - Export from barrel files: `components/dashboard/index.ts`
 - Include JSDoc comments for complex props
 - Colocate component + types + styles
 
 ### Validation Criteria
+
 - [ ] Lighthouse accessibility score ≥ 95
 - [ ] Lighthouse performance score ≥ 90
 - [ ] No layout shift on data load (CLS < 0.1)
@@ -1269,9 +1396,11 @@ src/
 ## Agent E — Live Updates + Performance
 
 ### Scope
+
 Implement real-time data updates via file watching and optimize overall performance.
 
 ### Files to Create/Edit
+
 ```
 src/lib/watcher/
 ├── index.ts               # Main watcher orchestrator
@@ -1294,6 +1423,7 @@ src/lib/performance/
 ### Tasks (Detailed)
 
 #### File Watcher Implementation
+
 - [ ] Install `chokidar` for cross-platform file watching
 - [ ] Implement `SessionWatcher` class:
   - Watch `~/.codex/sessions/` recursively for new/changed `.jsonl` files
@@ -1305,42 +1435,43 @@ src/lib/performance/
 - [ ] Cleanup on process exit (remove all watchers)
 
 #### Server-Sent Events (SSE) Endpoint
+
 - [ ] Implement `/api/events` SSE endpoint:
   ```typescript
   export async function GET(request: Request) {
-    const encoder = new TextEncoder();
+    const encoder = new TextEncoder()
     const stream = new ReadableStream({
       start(controller) {
         const send = (event: string, data: object) => {
-          controller.enqueue(encoder.encode(`event: ${event}\n`));
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-        };
-        
+          controller.enqueue(encoder.encode(`event: ${event}\n`))
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        }
+
         // Subscribe to watcher events
         const unsubscribe = watcher.subscribe((event) => {
-          send(event.type, event.payload);
-        });
-        
+          send(event.type, event.payload)
+        })
+
         // Heartbeat every 30s
         const heartbeat = setInterval(() => {
-          send('heartbeat', { timestamp: Date.now() });
-        }, 30000);
-        
+          send('heartbeat', { timestamp: Date.now() })
+        }, 30000)
+
         // Cleanup on close
         request.signal.addEventListener('abort', () => {
-          unsubscribe();
-          clearInterval(heartbeat);
-        });
+          unsubscribe()
+          clearInterval(heartbeat)
+        })
       },
-    });
-    
+    })
+
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
       },
-    });
+    })
   }
   ```
 - [ ] Event types to send:
@@ -1353,51 +1484,52 @@ src/lib/performance/
 - [ ] Graceful degradation if SSE not supported
 
 #### Client-Side Live Updates
+
 - [ ] Implement `useLiveUpdates()` hook:
   ```typescript
   export function useLiveUpdates() {
-    const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-    const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-    const { mutate } = useSWRConfig();
-    
+    const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+    const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+    const { mutate } = useSWRConfig()
+
     useEffect(() => {
-      let eventSource: EventSource;
-      let reconnectTimeout: NodeJS.Timeout;
-      let reconnectAttempts = 0;
-      
+      let eventSource: EventSource
+      let reconnectTimeout: NodeJS.Timeout
+      let reconnectAttempts = 0
+
       const connect = () => {
-        eventSource = new EventSource('/api/events');
-        
+        eventSource = new EventSource('/api/events')
+
         eventSource.onopen = () => {
-          setStatus('connected');
-          reconnectAttempts = 0;
-        };
-        
+          setStatus('connected')
+          reconnectAttempts = 0
+        }
+
         eventSource.addEventListener('data-updated', () => {
-          setLastUpdate(new Date());
+          setLastUpdate(new Date())
           // Revalidate all SWR caches
-          mutate(() => true);
-        });
-        
+          mutate(() => true)
+        })
+
         eventSource.onerror = () => {
-          setStatus('disconnected');
-          eventSource.close();
+          setStatus('disconnected')
+          eventSource.close()
           // Exponential backoff: 1s, 2s, 4s, 8s, max 30s
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-          reconnectTimeout = setTimeout(connect, delay);
-          reconnectAttempts++;
-        };
-      };
-      
-      connect();
-      
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000)
+          reconnectTimeout = setTimeout(connect, delay)
+          reconnectAttempts++
+        }
+      }
+
+      connect()
+
       return () => {
-        eventSource?.close();
-        clearTimeout(reconnectTimeout);
-      };
-    }, [mutate]);
-    
-    return { status, lastUpdate };
+        eventSource?.close()
+        clearTimeout(reconnectTimeout)
+      }
+    }, [mutate])
+
+    return { status, lastUpdate }
   }
   ```
 - [ ] Visual feedback for live updates:
@@ -1410,6 +1542,7 @@ src/lib/performance/
   - Disconnected: red dot + "Offline" + manual refresh button
 
 #### Incremental Ingest on File Change
+
 - [ ] On watcher event, trigger incremental ingest for changed file only
 - [ ] Batch rapid changes (multiple files in 500ms window) into single ingest run
 - [ ] Update `ingest_state` atomically
@@ -1417,6 +1550,7 @@ src/lib/performance/
 - [ ] Log ingest performance for monitoring
 
 #### Performance Profiling
+
 - [ ] Implement performance measurement utility:
   ```typescript
   export async function measureAsync<T>(
@@ -1424,15 +1558,15 @@ src/lib/performance/
     fn: () => Promise<T>,
     threshold = 100
   ): Promise<T> {
-    const start = performance.now();
-    const result = await fn();
-    const duration = performance.now() - start;
-    
+    const start = performance.now()
+    const result = await fn()
+    const duration = performance.now() - start
+
     if (duration > threshold) {
-      console.warn(`[PERF] ${name} took ${duration.toFixed(2)}ms (threshold: ${threshold}ms)`);
+      console.warn(`[PERF] ${name} took ${duration.toFixed(2)}ms (threshold: ${threshold}ms)`)
     }
-    
-    return result;
+
+    return result
   }
   ```
 - [ ] Add profiling to critical paths:
@@ -1465,6 +1599,7 @@ src/lib/performance/
   ```
 
 #### Query Performance Optimization
+
 - [ ] Analyze query patterns with EXPLAIN QUERY PLAN
 - [ ] Add database indexes based on actual query patterns:
   ```sql
@@ -1475,28 +1610,27 @@ src/lib/performance/
   CREATE INDEX idx_daily_activity_date ON daily_activity(date DESC);
   ```
 - [ ] Implement query result caching:
+
   ```typescript
-  const cache = new Map<string, { data: unknown; expires: number }>();
-  
-  export function cachedQuery<T>(
-    key: string,
-    query: () => T,
-    ttlMs = 30000
-  ): T {
-    const cached = cache.get(key);
+  const cache = new Map<string, { data: unknown; expires: number }>()
+
+  export function cachedQuery<T>(key: string, query: () => T, ttlMs = 30000): T {
+    const cached = cache.get(key)
     if (cached && cached.expires > Date.now()) {
-      return cached.data as T;
+      return cached.data as T
     }
-    
-    const data = query();
-    cache.set(key, { data, expires: Date.now() + ttlMs });
-    return data;
+
+    const data = query()
+    cache.set(key, { data, expires: Date.now() + ttlMs })
+    return data
   }
   ```
+
 - [ ] Cache invalidation on `data-updated` events
 - [ ] Pre-compute daily rollups into `daily_activity` table on ingest
 
 #### UI Render Performance
+
 - [ ] Profile React renders with React DevTools Profiler
 - [ ] Add `React.memo` to expensive components:
   - Chart components
@@ -1510,6 +1644,7 @@ src/lib/performance/
   - Ensure SWR hooks have stable keys
 
 #### Cold Start Optimization
+
 - [ ] Implement progressive loading strategy:
   1. Show UI shell immediately (< 100ms)
   2. Load cached/stale data from localStorage if available
@@ -1518,35 +1653,37 @@ src/lib/performance/
   5. Update UI as data streams in
 - [ ] Add startup time logging:
   ```typescript
-  console.log(`[STARTUP] Shell rendered: ${shellTime}ms`);
-  console.log(`[STARTUP] Data loaded: ${dataTime}ms`);
-  console.log(`[STARTUP] Fully interactive: ${totalTime}ms`);
+  console.log(`[STARTUP] Shell rendered: ${shellTime}ms`)
+  console.log(`[STARTUP] Data loaded: ${dataTime}ms`)
+  console.log(`[STARTUP] Fully interactive: ${totalTime}ms`)
   ```
 - [ ] Target: Time to interactive < 2s
 
 ### Output Format
+
 ```typescript
 // src/lib/watcher/index.ts
-export function startWatcher(codexHome?: string): void;
-export function stopWatcher(): void;
-export function getWatcherStatus(): WatcherStatus;
-export function subscribe(callback: (event: WatcherEvent) => void): () => void;
+export function startWatcher(codexHome?: string): void
+export function stopWatcher(): void
+export function getWatcherStatus(): WatcherStatus
+export function subscribe(callback: (event: WatcherEvent) => void): () => void
 
 interface WatcherStatus {
-  running: boolean;
-  watchedPaths: string[];
-  lastEvent: Date | null;
-  errors: string[];
+  running: boolean
+  watchedPaths: string[]
+  lastEvent: Date | null
+  errors: string[]
 }
 
 // src/hooks/use-live-updates.ts
 export function useLiveUpdates(): {
-  status: 'connecting' | 'connected' | 'disconnected';
-  lastUpdate: Date | null;
-};
+  status: 'connecting' | 'connected' | 'disconnected'
+  lastUpdate: Date | null
+}
 ```
 
 ### Validation Criteria
+
 - [ ] SSE connection established within 1s of page load
 - [ ] New data appears in UI within 2s of file change
 - [ ] No memory leaks after 1hr of watching (heap size stable ± 10%)
@@ -1590,11 +1727,13 @@ export function useLiveUpdates(): {
 ```
 
 **Parallel execution opportunities:**
+
 - Agent A + B can run simultaneously after Orchestrator setup
 - Agent D can start early with mock data/fixture endpoints
 - Agent E starts after A + C are functional
 
 **Integration checkpoints:**
+
 1. After A + B: Verify data is correctly ingested and queryable
 2. After C: API contracts match frontend TypeScript types
 3. After D + E: Full integration test with live data
@@ -1604,6 +1743,7 @@ export function useLiveUpdates(): {
 ## Open Questions / Decisions
 
 ### Resolved
+
 - **Runtime**: Node.js (stable ecosystem, better SQLite bindings)
 - **Chart library**: Recharts (React-native, composable, good dark mode support)
 - **Theme system**: next-themes with system preference detection
@@ -1618,4 +1758,5 @@ export function useLiveUpdates(): {
   - Implementation: Fetch and cache the JSON periodically (daily), compute cost per model call using `input_tokens × input_price + output_tokens × output_price`
 
 ### Remaining
+
 (All initial decisions resolved for v1)

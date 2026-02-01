@@ -1,20 +1,27 @@
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { StatusBadge } from "@/components/shared/status-badge"
-import { formatCompactNumber, formatDuration } from "@/lib/constants"
-import type { SessionListItem } from "@/types/api"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { StatusBadge } from '@/components/shared/status-badge'
+import { formatCompactNumber, formatDuration } from '@/lib/constants'
+import type { SessionListItem } from '@/types/api'
 
 function getProject(cwd: string | null) {
-  if (!cwd) return "—"
-  const parts = cwd.split("/")
+  if (!cwd) return '—'
+  const parts = cwd.split('/')
   return parts[parts.length - 1] || cwd
 }
 
 function successStatus(rate: number) {
-  if (rate >= 0.9) return "ok"
-  if (rate >= 0.7) return "partial"
-  return "failed"
+  if (rate >= 0.9) return 'ok'
+  if (rate >= 0.7) return 'partial'
+  return 'failed'
 }
 
 export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
@@ -42,10 +49,10 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
               </TableCell>
               <TableCell>
                 <div className="text-sm font-medium">{getProject(session.cwd)}</div>
-                <div className="text-xs text-muted-foreground">{session.cwd ?? "—"}</div>
+                <div className="text-xs text-muted-foreground">{session.cwd ?? '—'}</div>
               </TableCell>
               <TableCell>
-                <div className="text-sm">{session.modelProvider ?? "—"}</div>
+                <div className="text-sm">{session.modelProvider ?? '—'}</div>
               </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatCompactNumber(session.messageCount)}
@@ -54,9 +61,7 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
                 {formatCompactNumber(session.tokens.total)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatDuration(
-                  session.durationMs === null ? Number.NaN : session.durationMs
-                )}
+                {formatDuration(session.durationMs === null ? Number.NaN : session.durationMs)}
               </TableCell>
               <TableCell className="text-right">
                 <StatusBadge status={successStatus(session.successRate)} />

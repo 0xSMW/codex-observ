@@ -1,16 +1,16 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Menu, ChevronRight } from "lucide-react"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Menu, ChevronRight } from 'lucide-react'
 
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
-import { DateRangePicker } from "@/components/shared/date-range-picker"
-import { ThemeToggle } from "@/components/layout/theme-toggle"
-import { NAV_ITEMS } from "@/lib/constants"
-import { cn } from "@/lib/utils"
+import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { Separator } from '@/components/ui/separator'
+import { DateRangePicker } from '@/components/shared/date-range-picker'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
+import { NAV_ITEMS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 
 export function Header() {
   const pathname = usePathname()
@@ -37,10 +37,10 @@ export function Header() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
+                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium',
                       pathname === item.href
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/50"
+                        ? 'bg-accent text-accent-foreground'
+                        : 'text-muted-foreground hover:bg-accent/50'
                     )}
                   >
                     {item.title}
@@ -56,12 +56,10 @@ export function Header() {
           </Sheet>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              {current?.title ?? "Dashboard"}
+              {current?.title ?? 'Dashboard'}
             </h1>
             {current?.description && (
-              <p className="text-sm text-muted-foreground">
-                {current.description}
-              </p>
+              <p className="text-sm text-muted-foreground">{current.description}</p>
             )}
           </div>
         </div>

@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { CalendarDays, MessageSquare, Zap } from "lucide-react"
+import { CalendarDays, MessageSquare, Zap } from 'lucide-react'
 
-import { useActivity } from "@/hooks/use-activity"
-import { ActivityHeatmap } from "@/components/activity/heatmap"
-import { ErrorState } from "@/components/shared/error-state"
-import { KpiGrid } from "@/components/dashboard/kpi-grid"
-import { KpiSkeleton } from "@/components/shared/loading-skeleton"
+import { useActivity } from '@/hooks/use-activity'
+import { ActivityHeatmap } from '@/components/activity/heatmap'
+import { ErrorState } from '@/components/shared/error-state'
+import { KpiGrid } from '@/components/dashboard/kpi-grid'
+import { KpiSkeleton } from '@/components/shared/loading-skeleton'
 
 export default function ActivityPage() {
   const year = new Date().getFullYear()
@@ -17,24 +17,24 @@ export default function ActivityPage() {
   const kpiItems = summary
     ? [
         {
-          label: "Total messages",
+          label: 'Total messages',
           value: summary.totalMessages,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <MessageSquare className="h-4 w-4" />,
         },
         {
-          label: "Total calls",
+          label: 'Total calls',
           value: summary.totalCalls,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <Zap className="h-4 w-4" />,
         },
         {
-          label: "Active days",
+          label: 'Active days',
           value: summary.activeDays,
           change: 0,
-          trend: "neutral" as const,
+          trend: 'neutral' as const,
           icon: <CalendarDays className="h-4 w-4" />,
         },
       ]
@@ -62,9 +62,7 @@ export default function ActivityPage() {
       {data && (
         <div className="rounded-lg border bg-card p-6">
           <h3 className="text-base font-semibold">Activity heatmap</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Token throughput by day for {year}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Token throughput by day for {year}</p>
           <div className="mt-6 overflow-x-auto">
             <ActivityHeatmap year={year} data={data} />
           </div>

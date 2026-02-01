@@ -1,40 +1,38 @@
-import { getDateRange, rangeToResponse } from '@/lib/metrics/date-range';
-import { jsonError, jsonOk } from '@/lib/metrics/http';
-import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination';
-import { getSessionDetail } from '@/lib/metrics/session-detail';
+import { getDateRange, rangeToResponse } from '@/lib/metrics/date-range'
+import { jsonError, jsonOk } from '@/lib/metrics/http'
+import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination'
+import { getSessionDetail } from '@/lib/metrics/session-detail'
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params
   try {
-    const url = new URL(request.url);
-    const { range, errors: rangeErrors } = getDateRange(url.searchParams);
+    const url = new URL(request.url)
+    const { range, errors: rangeErrors } = getDateRange(url.searchParams)
 
     const messagePagination = parsePagination(url.searchParams, {
       defaultLimit: 50,
       maxLimit: 200,
       prefix: 'message',
-    });
+    })
     const modelPagination = parsePagination(url.searchParams, {
       defaultLimit: 50,
       maxLimit: 200,
       prefix: 'model',
-    });
+    })
     const toolPagination = parsePagination(url.searchParams, {
       defaultLimit: 50,
       maxLimit: 200,
       prefix: 'tool',
-    });
+    })
 
     const errors = [
       ...rangeErrors,
       ...messagePagination.errors,
       ...modelPagination.errors,
       ...toolPagination.errors,
-    ];
+    ]
     if (errors.length > 0) {
-      return jsonError(errors.join('; '), 'invalid_query');
+      return jsonError(errors.join('; '), 'invalid_query')
     }
 
     const result = getSessionDetail(
@@ -43,10 +41,10 @@ export async function GET(
       messagePagination.pagination,
       modelPagination.pagination,
       toolPagination.pagination
-    );
+    )
 
     if (!result.session) {
-      return jsonError('Session not found', 'not_found', 404);
+      return jsonError('Session not found', 'not_found', 404)
     }
 
     return jsonOk({
@@ -65,9 +63,9 @@ export async function GET(
         pagination: paginationToResponse(toolPagination.pagination, result.toolCalls.total),
         items: result.toolCalls.items,
       },
-    });
+    })
   } catch (error) {
-    console.error('sessions:detail failed', error);
-    return jsonError('Failed to load session', 'internal_error', 500);
+    console.error('sessions:detail failed', error)
+    return jsonError('Failed to load session', 'internal_error', 500)
   }
 }

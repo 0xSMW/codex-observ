@@ -1,14 +1,14 @@
-"use client"
+'use client'
 
-import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { Line, LineChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { formatPercent } from "@/lib/constants"
-import type { OverviewSeriesPoint } from "@/types/api"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { formatPercent } from '@/lib/constants'
+import type { OverviewSeriesPoint } from '@/types/api'
 
 const chartConfig = {
-  cacheHitRate: { label: "Cache hit rate", color: "hsl(var(--chart-3))" },
-} satisfies Parameters<typeof ChartContainer>[0]["config"]
+  cacheHitRate: { label: 'Cache hit rate', color: 'hsl(var(--chart-3))' },
+} satisfies Parameters<typeof ChartContainer>[0]['config']
 
 export function CacheChart({ data }: { data: OverviewSeriesPoint[] }) {
   return (
@@ -23,11 +23,7 @@ export function CacheChart({ data }: { data: OverviewSeriesPoint[] }) {
           tickFormatter={(value) => formatPercent(Number(value), 0)}
         />
         <ChartTooltip
-          content={
-            <ChartTooltipContent
-              formatter={(value) => formatPercent(Number(value), 1)}
-            />
-          }
+          content={<ChartTooltipContent formatter={(value) => formatPercent(Number(value), 1)} />}
         />
         <Line
           type="monotone"

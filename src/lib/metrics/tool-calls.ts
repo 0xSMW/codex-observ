@@ -1,60 +1,60 @@
-import { applyDateRange, DateRange } from './date-range';
-import { getDatabase, tableExists } from './db';
-import { Pagination } from './pagination';
+import { applyDateRange, DateRange } from './date-range'
+import { getDatabase, tableExists } from './db'
+import { Pagination } from './pagination'
 
 export interface ToolCallsListOptions {
-  range: DateRange;
-  pagination: Pagination;
-  status?: string[];
-  tools?: string[];
-  sessionId?: string | null;
-  search?: string | null;
+  range: DateRange
+  pagination: Pagination
+  status?: string[]
+  tools?: string[]
+  sessionId?: string | null
+  search?: string | null
 }
 
 export interface ToolCallListItem {
-  id: string;
-  sessionId: string | null;
-  toolName: string;
-  command: string | null;
-  status: string;
-  startTs: number;
-  endTs: number | null;
-  durationMs: number | null;
-  exitCode: number | null;
-  error: string | null;
-  stdoutBytes: number | null;
-  stderrBytes: number | null;
-  correlationKey: string | null;
+  id: string
+  sessionId: string | null
+  toolName: string
+  command: string | null
+  status: string
+  startTs: number
+  endTs: number | null
+  durationMs: number | null
+  exitCode: number | null
+  error: string | null
+  stdoutBytes: number | null
+  stderrBytes: number | null
+  correlationKey: string | null
 }
 
 export interface ToolCallSummary {
-  total: number;
-  ok: number;
-  failed: number;
-  unknown: number;
-  avgDurationMs: number;
-  successRate: number;
+  total: number
+  ok: number
+  failed: number
+  unknown: number
+  avgDurationMs: number
+  successRate: number
 }
 
 export interface ToolCallsListResult {
-  total: number;
-  toolCalls: ToolCallListItem[];
-  summary: ToolCallSummary;
+  total: number
+  toolCalls: ToolCallListItem[]
+  summary: ToolCallSummary
 }
 
 function toNumber(value: unknown, fallback = 0): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
+    return value
   }
-  const parsed = Number(value);
+  const parsed = Number(value)
   if (Number.isFinite(parsed)) {
-    return parsed;
+    return parsed
   }
-  return fallback;
+  return fallback
 }
 
 export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListResult {
-  const db = getDatabase();
+  const db = getDatabase()
   if (!tableExists(db, 'tool_call')) {
     return {
       total: 0,
@@ -67,39 +67,39 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
         avgDurationMs: 0,
         successRate: 0,
       },
-    };
+    }
   }
 
-  const where: string[] = [];
-  const params: unknown[] = [];
-  applyDateRange('start_ts', options.range, where, params);
+  const where: string[] = []
+  const params: unknown[] = []
+  applyDateRange('start_ts', options.range, where, params)
 
   if (options.sessionId) {
-    where.push('session_id = ?');
-    params.push(options.sessionId);
+    where.push('session_id = ?')
+    params.push(options.sessionId)
   }
 
   if (options.status && options.status.length > 0) {
-    where.push(`status IN (${options.status.map(() => '?').join(',')})`);
-    params.push(...options.status);
+    where.push(`status IN (${options.status.map(() => '?').join(',')})`)
+    params.push(...options.status)
   }
 
   if (options.tools && options.tools.length > 0) {
-    where.push(`tool_name IN (${options.tools.map(() => '?').join(',')})`);
-    params.push(...options.tools);
+    where.push(`tool_name IN (${options.tools.map(() => '?').join(',')})`)
+    params.push(...options.tools)
   }
 
   if (options.search) {
-    where.push('command LIKE ?');
-    params.push(`%${options.search}%`);
+    where.push('command LIKE ?')
+    params.push(`%${options.search}%`)
   }
 
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const totalRow = db
-    .prepare(`SELECT COUNT(*) AS total FROM tool_call ${whereSql}`)
-    .get(params) as Record<string, unknown> | undefined;
-  const total = toNumber(totalRow?.total);
+  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM tool_call ${whereSql}`).get(params) as
+    | Record<string, unknown>
+    | undefined
+  const total = toNumber(totalRow?.total)
 
   const summaryRow = db
     .prepare(
@@ -112,12 +112,12 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       FROM tool_call
       ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined;
+    .get(params) as Record<string, unknown> | undefined
 
-  const ok = toNumber(summaryRow?.ok_count);
-  const failed = toNumber(summaryRow?.failed_count);
-  const unknown = toNumber(summaryRow?.unknown_count);
-  const summaryTotal = toNumber(summaryRow?.total);
+  const ok = toNumber(summaryRow?.ok_count)
+  const failed = toNumber(summaryRow?.failed_count)
+  const unknown = toNumber(summaryRow?.unknown_count)
+  const summaryTotal = toNumber(summaryRow?.total)
 
   const rows = db
     .prepare(
@@ -130,7 +130,7 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
     .all([...params, options.pagination.limit, options.pagination.offset]) as Record<
     string,
     unknown
-  >[];
+  >[]
 
   const toolCalls = rows.map((row) => ({
     id: String(row.id ?? ''),
@@ -146,7 +146,7 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
     stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
     stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
     correlationKey: (row.correlation_key as string | null) ?? null,
-  }));
+  }))
 
   return {
     total,
@@ -159,5 +159,5 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       avgDurationMs: toNumber(summaryRow?.avg_duration_ms),
       successRate: summaryTotal > 0 ? ok / summaryTotal : 0,
     },
-  };
+  }
 }

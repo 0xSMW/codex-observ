@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { Sidebar } from "@/components/layout/sidebar"
-import { Header } from "@/components/layout/header"
-import { DateRangeProvider } from "@/hooks/use-date-range"
-import { LiveUpdatesProvider } from "@/hooks/use-live-updates-context"
+import { Sidebar } from '@/components/layout/sidebar'
+import { Header } from '@/components/layout/header'
+import { DateRangeProvider } from '@/hooks/use-date-range'
+import { LiveUpdatesProvider } from '@/hooks/use-live-updates-context'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (

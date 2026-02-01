@@ -1,49 +1,46 @@
-import 'server-only';
+import 'server-only'
 
-import path from 'node:path';
-import os from 'node:os';
-import { performance } from 'node:perf_hooks';
+import path from 'node:path'
+import os from 'node:os'
+import { performance } from 'node:perf_hooks'
 
-import { FileWatcher } from './file-watcher';
-import { debounce } from './debounce';
-import {
-  getPerformanceSnapshot,
-  recordTiming,
-} from '@/lib/performance/profiler';
+import { FileWatcher } from './file-watcher'
+import { debounce } from './debounce'
+import { getPerformanceSnapshot, recordTiming } from '@/lib/performance/profiler'
 import type {
   WatcherEvent,
   WatcherStatus,
   FileChangePayload,
   IngestPayload,
   MetricsPayload,
-} from './events';
+} from './events'
 
-export type IngestHandler = (paths: string[]) => Promise<unknown>;
+export type IngestHandler = (paths: string[]) => Promise<unknown>
 
 interface WatcherState {
-  running: boolean;
-  codexHome: string;
-  watcher: FileWatcher | null;
-  subscribers: Set<(event: WatcherEvent) => void>;
-  lastEvent: Date | null;
-  errors: string[];
-  ingestHandler: IngestHandler;
-  ingestQueue: Set<string>;
-  ingestRunning: boolean;
-  pendingFlush: boolean;
-  scheduleFlush: () => void;
+  running: boolean
+  codexHome: string
+  watcher: FileWatcher | null
+  subscribers: Set<(event: WatcherEvent) => void>
+  lastEvent: Date | null
+  errors: string[]
+  ingestHandler: IngestHandler
+  ingestQueue: Set<string>
+  ingestRunning: boolean
+  pendingFlush: boolean
+  scheduleFlush: () => void
 }
 
-const GLOBAL_STATE_KEY = '__codexObservWatcherState__';
+const GLOBAL_STATE_KEY = '__codexObservWatcherState__'
 
 function resolveCodexHome(codexHome?: string): string {
-  return codexHome ?? path.join(os.homedir(), '.codex');
+  return codexHome ?? path.join(os.homedir(), '.codex')
 }
 
 function createState(): WatcherState {
   const scheduleFlush = debounce(() => {
-    void flushQueue();
-  }, 500);
+    void flushQueue()
+  }, 500)
 
   return {
     running: false,
@@ -60,92 +57,92 @@ function createState(): WatcherState {
     ingestRunning: false,
     pendingFlush: false,
     scheduleFlush,
-  };
+  }
 }
 
 const globalScope = globalThis as typeof globalThis & {
-  __codexObservWatcherState__?: WatcherState;
-};
+  __codexObservWatcherState__?: WatcherState
+}
 
-const state = globalScope[GLOBAL_STATE_KEY] ?? createState();
-globalScope[GLOBAL_STATE_KEY] = state;
+const state = globalScope[GLOBAL_STATE_KEY] ?? createState()
+globalScope[GLOBAL_STATE_KEY] = state
 
 function publish(event: WatcherEvent): void {
   if (event.type === 'error') {
-    state.errors.push(event.payload.error);
+    state.errors.push(event.payload.error)
     if (state.errors.length > 25) {
-      state.errors.shift();
+      state.errors.shift()
     }
   }
   if ('ts' in event.payload) {
-    state.lastEvent = new Date(event.payload.ts);
+    state.lastEvent = new Date(event.payload.ts)
   }
 
   for (const subscriber of state.subscribers) {
     try {
-      subscriber(event);
+      subscriber(event)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      state.errors.push(`Subscriber error: ${message}`);
+      const message = err instanceof Error ? err.message : String(err)
+      state.errors.push(`Subscriber error: ${message}`)
     }
   }
 }
 
 function isRelevantPath(filePath: string): boolean {
   if (filePath.endsWith('codex-tui.log')) {
-    return true;
+    return true
   }
   if (filePath.endsWith('history.jsonl')) {
-    return true;
+    return true
   }
-  return filePath.endsWith('.jsonl');
+  return filePath.endsWith('.jsonl')
 }
 
 function normalizePaths(paths: string[]): string[] {
-  const unique = new Set<string>();
+  const unique = new Set<string>()
   for (const filePath of paths) {
     if (!filePath) {
-      continue;
+      continue
     }
-    unique.add(filePath);
+    unique.add(filePath)
   }
-  return Array.from(unique);
+  return Array.from(unique)
 }
 
 function enqueueIngest(paths: string[]): void {
-  const relevant = normalizePaths(paths).filter(isRelevantPath);
+  const relevant = normalizePaths(paths).filter(isRelevantPath)
   if (relevant.length === 0) {
-    return;
+    return
   }
 
   for (const filePath of relevant) {
-    state.ingestQueue.add(filePath);
+    state.ingestQueue.add(filePath)
   }
 
   const payload: IngestPayload = {
     status: 'queued',
     files: relevant,
     ts: Date.now(),
-  };
+  }
 
-  publish({ type: 'ingest', payload });
+  publish({ type: 'ingest', payload })
 
-  state.scheduleFlush();
+  state.scheduleFlush()
 }
 
 async function flushQueue(): Promise<void> {
   if (state.ingestRunning) {
-    state.pendingFlush = true;
-    return;
+    state.pendingFlush = true
+    return
   }
 
   if (state.ingestQueue.size === 0) {
-    return;
+    return
   }
 
-  const files = Array.from(state.ingestQueue);
-  state.ingestQueue.clear();
-  state.ingestRunning = true;
+  const files = Array.from(state.ingestQueue)
+  state.ingestQueue.clear()
+  state.ingestRunning = true
 
   publish({
     type: 'ingest',
@@ -154,29 +151,25 @@ async function flushQueue(): Promise<void> {
       files,
       ts: Date.now(),
     },
-  });
+  })
 
-  const start = performance.now();
-  let result: unknown;
-  let error: string | undefined;
-  let status: IngestPayload['status'] = 'complete';
+  const start = performance.now()
+  let result: unknown
+  let error: string | undefined
+  let status: IngestPayload['status'] = 'complete'
 
   try {
-    result = await state.ingestHandler(files);
-    if (
-      typeof result === 'object' &&
-      result !== null &&
-      'skipped' in result
-    ) {
-      status = 'skipped';
+    result = await state.ingestHandler(files)
+    if (typeof result === 'object' && result !== null && 'skipped' in result) {
+      status = 'skipped'
     }
   } catch (err) {
-    status = 'error';
-    error = err instanceof Error ? err.message : String(err);
+    status = 'error'
+    error = err instanceof Error ? err.message : String(err)
   }
 
-  const durationMs = performance.now() - start;
-  recordTiming('ingest', durationMs);
+  const durationMs = performance.now() - start
+  recordTiming('ingest', durationMs)
 
   publish({
     type: 'ingest',
@@ -188,47 +181,47 @@ async function flushQueue(): Promise<void> {
       result,
       ts: Date.now(),
     },
-  });
+  })
 
   const metrics: MetricsPayload = {
     ts: Date.now(),
     metrics: getPerformanceSnapshot(),
-  };
+  }
 
-  publish({ type: 'metrics', payload: metrics });
+  publish({ type: 'metrics', payload: metrics })
 
-  state.ingestRunning = false;
+  state.ingestRunning = false
   if (state.pendingFlush || state.ingestQueue.size > 0) {
-    state.pendingFlush = false;
-    state.scheduleFlush();
+    state.pendingFlush = false
+    state.scheduleFlush()
   }
 }
 
 function handleFileEvent(event: FileChangePayload): void {
-  publish({ type: 'file-change', payload: event });
+  publish({ type: 'file-change', payload: event })
 
   if (isRelevantPath(event.path)) {
-    enqueueIngest([event.path]);
-    return;
+    enqueueIngest([event.path])
+    return
   }
 
   if (event.kind === 'log') {
-    const logPath = path.join(state.codexHome, 'log', 'codex-tui.log');
-    enqueueIngest([logPath]);
+    const logPath = path.join(state.codexHome, 'log', 'codex-tui.log')
+    enqueueIngest([logPath])
   }
 }
 
 export function startWatcher(codexHome?: string): void {
-  const resolvedHome = resolveCodexHome(codexHome);
+  const resolvedHome = resolveCodexHome(codexHome)
 
   if (state.running) {
     if (state.codexHome === resolvedHome) {
-      return;
+      return
     }
-    stopWatcher();
+    stopWatcher()
   }
 
-  state.codexHome = resolvedHome;
+  state.codexHome = resolvedHome
 
   const watcher = new FileWatcher({
     codexHome: resolvedHome,
@@ -240,35 +233,35 @@ export function startWatcher(codexHome?: string): void {
           ts: Date.now(),
           error: message,
         },
-      });
+      })
     },
-  });
+  })
 
-  state.watcher = watcher;
-  state.running = true;
+  state.watcher = watcher
+  state.running = true
 
   try {
-    watcher.start();
+    watcher.start()
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err)
     publish({
       type: 'error',
       payload: {
         ts: Date.now(),
         error: `Watcher failed to start: ${message}`,
       },
-    });
+    })
   }
 }
 
 export function stopWatcher(): void {
   if (!state.running || !state.watcher) {
-    return;
+    return
   }
 
-  state.watcher.stop();
-  state.watcher = null;
-  state.running = false;
+  state.watcher.stop()
+  state.watcher = null
+  state.running = false
 }
 
 export function getWatcherStatus(): WatcherStatus {
@@ -278,25 +271,25 @@ export function getWatcherStatus(): WatcherStatus {
       watchedPaths: [],
       lastEvent: state.lastEvent,
       errors: [...state.errors],
-    };
+    }
   }
 
-  const status = state.watcher.getStatus();
+  const status = state.watcher.getStatus()
   return {
     running: status.running,
     watchedPaths: status.watchedPaths,
     lastEvent: status.lastEvent ?? state.lastEvent,
     errors: [...state.errors, ...status.errors],
-  };
+  }
 }
 
 export function subscribe(callback: (event: WatcherEvent) => void): () => void {
-  state.subscribers.add(callback);
+  state.subscribers.add(callback)
   return () => {
-    state.subscribers.delete(callback);
-  };
+    state.subscribers.delete(callback)
+  }
 }
 
 export function setIngestHandler(handler: IngestHandler): void {
-  state.ingestHandler = handler;
+  state.ingestHandler = handler
 }

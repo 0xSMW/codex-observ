@@ -1,17 +1,15 @@
-"use client"
+'use client'
 
-import React, { createContext, useContext, useMemo, useState } from "react"
-import { addDays, startOfDay, subDays } from "date-fns"
-import type { DateRange } from "react-day-picker"
+import React, { createContext, useContext, useMemo, useState } from 'react'
+import { addDays, startOfDay, subDays } from 'date-fns'
+import type { DateRange } from 'react-day-picker'
 
 export type DateRangeContextValue = {
   range: DateRange
   setRange: (range: DateRange) => void
 }
 
-const DateRangeContext = createContext<DateRangeContextValue | undefined>(
-  undefined
-)
+const DateRangeContext = createContext<DateRangeContextValue | undefined>(undefined)
 
 const defaultRange: DateRange = {
   from: startOfDay(subDays(new Date(), 29)),
@@ -39,17 +37,13 @@ export function DateRangeProvider({ children }: { children: React.ReactNode }) {
     [range]
   )
 
-  return (
-    <DateRangeContext.Provider value={value}>
-      {children}
-    </DateRangeContext.Provider>
-  )
+  return <DateRangeContext.Provider value={value}>{children}</DateRangeContext.Provider>
 }
 
 export function useDateRange() {
   const context = useContext(DateRangeContext)
   if (!context) {
-    throw new Error("useDateRange must be used within DateRangeProvider")
+    throw new Error('useDateRange must be used within DateRangeProvider')
   }
   return context
 }
