@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return jsonError(rangeErrors.join('; '), 'invalid_query')
     }
 
-    const { project, branches } = getProjectDetail(id, range)
+    const { project, branches, history, tokenBreakdown } = getProjectDetail(id, range)
 
     if (!project) {
       return jsonError('Project not found', 'not_found', 404)
@@ -22,6 +22,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       range: rangeToResponse(range),
       project,
       branches,
+      history,
+      tokenBreakdown,
     })
   } catch (error) {
     console.error('projects:detail failed', error)
