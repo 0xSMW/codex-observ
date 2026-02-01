@@ -17,7 +17,7 @@ export function Header() {
   const current = NAV_ITEMS.find((item) => item.href === pathname)
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <header className="sticky top-0 z-40 select-none border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex w-full max-w-screen-2xl items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
           <Sheet>
