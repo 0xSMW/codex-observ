@@ -3,6 +3,7 @@ import {
   normalizeGitUrl,
   detectGitRemote,
   findGitRoot,
+  repoNameFromRemote,
   FileSystem,
 } from '../src/lib/ingestion/git-utils'
 
@@ -42,6 +43,27 @@ function createMockFs(files: Record<string, string | boolean>): FileSystem {
 }
 
 describe('git-utils', () => {
+  describe('repoNameFromRemote', () => {
+    it('extracts repo name from HTTPS URLs', () => {
+      expect(repoNameFromRemote('https://github.com/user/repo')).toBe('repo')
+      expect(repoNameFromRemote('https://github.com/user/repo.git')).toBe('repo')
+      expect(repoNameFromRemote('https://github.com/0xSMW/fuel-nutrition.git')).toBe(
+        'fuel-nutrition'
+      )
+    })
+
+    it('extracts repo name from SSH URLs', () => {
+      expect(repoNameFromRemote('git@github.com:user/repo.git')).toBe('repo')
+      expect(repoNameFromRemote('ssh://git@github.com/org/project.git')).toBe('project')
+    })
+
+    it('returns null for invalid input', () => {
+      expect(repoNameFromRemote(null)).toBeNull()
+      expect(repoNameFromRemote('')).toBeNull()
+      expect(repoNameFromRemote('not-a-url')).toBeNull()
+    })
+  })
+
   describe('normalizeGitUrl', () => {
     it('returns null for empty input', () => {
       expect(normalizeGitUrl(null)).toBeNull()
