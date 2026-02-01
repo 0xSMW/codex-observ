@@ -126,7 +126,7 @@ function querySummary(
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_count,
         SUM(CASE WHEN status = 'failed' OR (exit_code IS NOT NULL AND exit_code != 0) THEN 1 ELSE 0 END) AS failed_count,
         SUM(CASE WHEN status = 'unknown' THEN 1 ELSE 0 END) AS unknown_count,
-        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
+        AVG(COALESCE(duration_ms, end_ts - start_ts)) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
         )
@@ -189,21 +189,31 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       unknown
     >[]
 
-    toolCalls = rows.map((row) => ({
-      id: String(row.id ?? ''),
-      sessionId: (row.session_id as string | null) ?? null,
-      toolName: String(row.tool_name ?? ''),
-      command: (row.command as string | null) ?? null,
-      status: String(row.status ?? 'unknown'),
-      startTs: toNumber(row.start_ts),
-      endTs: row.end_ts === null ? null : toNumber(row.end_ts),
-      durationMs: row.duration_ms === null ? null : toNumber(row.duration_ms),
-      exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
-      error: (row.error as string | null) ?? null,
-      stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
-      stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
-      correlationKey: (row.correlation_key as string | null) ?? null,
-    }))
+    toolCalls = rows.map((row) => {
+      const startTs = toNumber(row.start_ts)
+      const endTs = row.end_ts === null ? null : toNumber(row.end_ts)
+      const durationMs =
+        row.duration_ms !== null && row.duration_ms !== undefined
+          ? toNumber(row.duration_ms)
+          : endTs !== null && Number.isFinite(startTs) && Number.isFinite(endTs)
+            ? endTs - startTs
+            : null
+      return {
+        id: String(row.id ?? ''),
+        sessionId: (row.session_id as string | null) ?? null,
+        toolName: String(row.tool_name ?? ''),
+        command: (row.command as string | null) ?? null,
+        status: String(row.status ?? 'unknown'),
+        startTs,
+        endTs,
+        durationMs,
+        exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
+        error: (row.error as string | null) ?? null,
+        stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
+        stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
+        correlationKey: (row.correlation_key as string | null) ?? null,
+      }
+    })
   }
 
   return {
