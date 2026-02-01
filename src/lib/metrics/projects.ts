@@ -1,8 +1,19 @@
 import { toNumber } from '@/lib/utils'
+import { normalizeGitUrlForMerge, repoNameFromRemoteUrl } from '@/lib/format-git-remote'
 import { applyDateRange, DateRange } from './date-range'
 import { getDatabase, tableExists } from './db'
 import { Pagination } from './pagination'
 import { getPricingSync, getPricingForModel, computeCost } from '../pricing'
+
+/** Canonical key for merging multiple worktrees/checkouts into one logical project. */
+function projectMergeKey(name: string, gitRemote: string | null): string {
+  const normalizedRemote = gitRemote?.trim()
+  if (normalizedRemote) {
+    const key = normalizeGitUrlForMerge(normalizedRemote)
+    if (key) return key
+  }
+  return (name || '').trim().toLowerCase() || 'unknown'
+}
 
 export type ProjectSortKey = 'lastSeen' | 'firstSeen' | 'name' | 'sessionCount' | 'totalTokens'
 export type SortOrder = 'asc' | 'desc'
@@ -164,8 +175,7 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
     avgSuccessRate,
   }
 
-  // 2. Fetch Paginated List
-  // Get List of Project IDs matching the filter
+  // 2. Fetch project rows and group by merge key (same repo/worktrees = one logical project)
   const subWhere = options.range.startMs != null ? ' AND s.ts >= ? AND s.ts <= ?' : ''
   const projectIdsStmt = db.prepare(
     `SELECT DISTINCT project_id AS id FROM session s WHERE project_id IS NOT NULL ${subWhere}`
@@ -176,138 +186,223 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
       : projectIdsStmt.all()
   ) as Array<{ id: string }>
 
-  const projectIds = projectIdRows.map((r) => r.id)
-  if (projectIds.length === 0) {
+  const rawProjectIds = projectIdRows.map((r) => r.id)
+  if (rawProjectIds.length === 0) {
     return { total: 0, projects: [], aggregates }
   }
 
-  // Sorting
-  const sortBy = options.sortBy ?? 'lastSeen'
-  const sortOrder = options.sortOrder ?? 'desc'
-  const direction = sortOrder === 'asc' ? 'ASC' : 'DESC'
-
-  let orderByClause = 'ORDER BY last_seen_ts DESC NULLS LAST'
-
-  // For complex sorts like sessionCount, we need to join or subquery in the ordering
-  // But we are selecting from `project` table filtered by `projectIds` list.
-
-  if (sortBy === 'name') {
-    orderByClause = `ORDER BY name ${direction}`
-  } else if (sortBy === 'firstSeen') {
-    orderByClause = `ORDER BY first_seen_ts ${direction} NULLS LAST`
-  } else if (sortBy === 'lastSeen') {
-    orderByClause = `ORDER BY last_seen_ts ${direction} NULLS LAST`
-  } else if (sortBy === 'sessionCount') {
-    // This is tricky efficiently, but fine for small datasets
-    orderByClause = `ORDER BY (SELECT COUNT(*) FROM session s WHERE s.project_id = project.id) ${direction}`
-  } else if (sortBy === 'totalTokens' && hasModelCall) {
-    orderByClause = `ORDER BY (SELECT COALESCE(SUM(mc.total_tokens),0) FROM model_call mc JOIN session s ON s.id = mc.session_id WHERE s.project_id = project.id) ${direction}`
-  }
-
-  const placeholders = projectIds.map(() => '?').join(',')
-  const query = `SELECT id FROM project WHERE id IN (${placeholders}) ${orderByClause} LIMIT ? OFFSET ?`
-
-  const paginatedIds = db
-    .prepare(query)
-    .all(...projectIds, options.pagination.limit, options.pagination.offset) as Array<{
+  const placeholders = rawProjectIds.map(() => '?').join(',')
+  const projectRows = db
+    .prepare(
+      `SELECT id, name, root_path, git_remote, first_seen_ts, last_seen_ts FROM project WHERE id IN (${placeholders})`
+    )
+    .all(...rawProjectIds) as Array<{
     id: string
+    name: string
+    root_path: string | null
+    git_remote: string | null
+    first_seen_ts: number | null
+    last_seen_ts: number | null
   }>
 
-  const projects: ProjectListItem[] = []
-
-  for (const row of paginatedIds) {
-    const pid = row.id
-
-    // 1. Session Count
-    const sessionCountRow = db
-      .prepare(
-        `SELECT COUNT(*) AS c FROM session WHERE project_id = ? ${options.range.startMs != null ? ' AND ts >= ? AND ts <= ?' : ''}`
+  const searchLower = options.search?.trim().toLowerCase()
+  const rowsFiltered = searchLower
+    ? projectRows.filter(
+        (p) =>
+          (p.name && p.name.toLowerCase().includes(searchLower)) ||
+          (p.root_path && p.root_path.toLowerCase().includes(searchLower)) ||
+          (p.git_remote && p.git_remote.toLowerCase().includes(searchLower))
       )
-      .get(
-        pid,
-        ...(options.range.startMs != null
-          ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
-          : [])
-      ) as Record<string, unknown>
+    : projectRows
 
-    // 2. Token Metrics & Cost
+  const mergeKeyToIds = new Map<string, string[]>()
+  for (const p of rowsFiltered) {
+    const key = projectMergeKey(p.name, p.git_remote)
+    const list = mergeKeyToIds.get(key) ?? []
+    list.push(p.id)
+    mergeKeyToIds.set(key, list)
+  }
+
+  const mergeKeyToDisplay = new Map<string, (typeof projectRows)[0]>()
+  for (const p of rowsFiltered) {
+    const key = projectMergeKey(p.name, p.git_remote)
+    const existing = mergeKeyToDisplay.get(key)
+    if (!existing) mergeKeyToDisplay.set(key, p)
+    else {
+      const existingTs = existing.last_seen_ts ?? 0
+      const pTs = p.last_seen_ts ?? 0
+      if (pTs > existingTs || (p.git_remote && !existing.git_remote)) mergeKeyToDisplay.set(key, p)
+    }
+  }
+
+  const sortBy = options.sortBy ?? 'lastSeen'
+  const sortOrder = options.sortOrder ?? 'desc'
+  const listRangeParams =
+    options.range.startMs != null
+      ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
+      : []
+
+  const sessionCountStmt = db.prepare(
+    `SELECT project_id, COUNT(*) AS c FROM session WHERE project_id IS NOT NULL ${options.range.startMs != null ? ' AND ts >= ? AND ts <= ?' : ''} GROUP BY project_id`
+  )
+  const sessionCountByPid = new Map<string, number>()
+  const sessionCountRows = (
+    options.range.startMs != null
+      ? sessionCountStmt.all(...listRangeParams)
+      : sessionCountStmt.all()
+  ) as Array<{ project_id: string; c: number }>
+  for (const r of sessionCountRows) sessionCountByPid.set(r.project_id, toNumber(r.c))
+
+  const tokenSumByPid = new Map<string, number>()
+  if (hasModelCall) {
+    const tokenRows = db
+      .prepare(
+        `SELECT s.project_id, COALESCE(SUM(mc.total_tokens),0) AS t FROM model_call mc JOIN session s ON s.id = mc.session_id WHERE s.project_id IS NOT NULL ${options.range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''} GROUP BY s.project_id`
+      )
+      .all(...(options.range.startMs != null ? listRangeParams : [])) as Array<{
+      project_id: string
+      t: number
+    }>
+    for (const r of tokenRows) tokenSumByPid.set(r.project_id, toNumber(r.t))
+  }
+
+  type ProjectRow = (typeof projectRows)[0]
+  function canonicalName(row: ProjectRow): string {
+    const fromRemote = repoNameFromRemoteUrl(row.git_remote)
+    if (fromRemote) return fromRemote
+    return (row.name || '').trim().toLowerCase() || 'unknown'
+  }
+
+  const canonicalToGroup = new Map<string, { pids: string[]; displayRow: ProjectRow }>()
+  for (const [mergeKey, pids] of mergeKeyToIds) {
+    const display = mergeKeyToDisplay.get(mergeKey)!
+    const can = canonicalName(display)
+    const existing = canonicalToGroup.get(can)
+    if (!existing) {
+      canonicalToGroup.set(can, { pids: [...pids], displayRow: display })
+    } else {
+      existing.pids.push(...pids)
+      const prefer =
+        display.git_remote && !existing.displayRow.git_remote
+          ? display
+          : (display.last_seen_ts ?? 0) > (existing.displayRow.last_seen_ts ?? 0)
+            ? display
+            : existing.displayRow
+      existing.displayRow = prefer
+    }
+  }
+
+  const mergedGroups: Array<{ pids: string[]; displayRow: ProjectRow }> = []
+  for (const group of canonicalToGroup.values()) {
+    mergedGroups.push(group)
+  }
+
+  const cmp = sortOrder === 'asc' ? 1 : -1
+  const sessionSum = (pids: string[]) =>
+    pids.reduce((s, pid) => s + (sessionCountByPid.get(pid) ?? 0), 0)
+  const tokenSum = (pids: string[]) => pids.reduce((s, pid) => s + (tokenSumByPid.get(pid) ?? 0), 0)
+  const maxLastTs = (pids: string[]) =>
+    Math.max(...pids.map((pid) => projectRows.find((r) => r.id === pid)?.last_seen_ts ?? 0))
+  const minFirstTs = (pids: string[]) =>
+    Math.min(
+      ...pids.map(
+        (pid) => projectRows.find((r) => r.id === pid)?.first_seen_ts ?? Number.MAX_SAFE_INTEGER
+      ),
+      Number.MAX_SAFE_INTEGER
+    )
+
+  mergedGroups.sort((a, b) => {
+    const nameA = a.displayRow.name ?? ''
+    const nameB = b.displayRow.name ?? ''
+    let diff = 0
+    if (sortBy === 'name') diff = nameA.localeCompare(nameB)
+    else if (sortBy === 'sessionCount') diff = sessionSum(a.pids) - sessionSum(b.pids)
+    else if (sortBy === 'totalTokens') diff = tokenSum(a.pids) - tokenSum(b.pids)
+    else if (sortBy === 'lastSeen') diff = maxLastTs(a.pids) - maxLastTs(b.pids)
+    else if (sortBy === 'firstSeen') diff = minFirstTs(a.pids) - minFirstTs(b.pids)
+    else diff = maxLastTs(a.pids) - maxLastTs(b.pids)
+    return diff * cmp
+  })
+
+  const totalMerged = mergedGroups.length
+  const { limit, offset } = options.pagination
+  const paginatedGroups = mergedGroups.slice(offset, offset + limit)
+
+  const projects: ProjectListItem[] = []
+  for (const { pids, displayRow } of paginatedGroups) {
+    let sessionCount = 0
     let totalTokens = 0
     let totalInputTokens = 0
     let totalCachedTokens = 0
     let estimatedCost = 0
+    let toolCallCount = 0
+    let toolOkCount = 0
 
-    if (hasModelCall) {
-      // Aggregate by model to compute cost correctly
-      const modelUsageRows = db
-        .prepare(
-          `SELECT 
-           mc.model,
-           COALESCE(SUM(mc.total_tokens), 0) AS t, 
-           COALESCE(SUM(mc.input_tokens), 0) AS i, 
-           COALESCE(SUM(mc.cached_input_tokens), 0) AS c,
-           COALESCE(SUM(mc.output_tokens), 0) AS o,
-           COALESCE(SUM(mc.reasoning_tokens), 0) AS r
-         FROM model_call mc 
-         JOIN session s ON s.id = mc.session_id 
-         WHERE s.project_id = ? ${options.range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''}
-         GROUP BY mc.model`
-        )
-        .all(
-          pid,
-          ...(options.range.startMs != null
-            ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
-            : [])
-        ) as Array<{ model: string; t: number; i: number; c: number; o: number; r: number }>
+    for (const pid of pids) {
+      sessionCount += sessionCountByPid.get(pid) ?? 0
+      totalTokens += tokenSumByPid.get(pid) ?? 0
 
-      for (const mRow of modelUsageRows) {
-        totalTokens += toNumber(mRow.t)
-        totalInputTokens += toNumber(mRow.i)
-        totalCachedTokens += toNumber(mRow.c)
-
-        const pricing = getPricingForModel(pricingData, mRow.model)
-        if (pricing) {
-          const cost = computeCost(
-            pricing,
-            toNumber(mRow.i),
-            toNumber(mRow.c),
-            toNumber(mRow.o),
-            toNumber(mRow.r)
+      if (hasModelCall) {
+        const modelRows = db
+          .prepare(
+            `SELECT mc.model, COALESCE(SUM(mc.input_tokens),0) AS i, COALESCE(SUM(mc.cached_input_tokens),0) AS c, COALESCE(SUM(mc.output_tokens),0) AS o, COALESCE(SUM(mc.reasoning_tokens),0) AS r
+             FROM model_call mc JOIN session s ON s.id = mc.session_id WHERE s.project_id = ? ${options.range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''} GROUP BY mc.model`
           )
-          estimatedCost += cost ?? 0
+          .all(pid, ...(options.range.startMs != null ? listRangeParams : [])) as Array<{
+          model: string
+          i: number
+          c: number
+          o: number
+          r: number
+        }>
+        for (const mRow of modelRows) {
+          totalInputTokens += toNumber(mRow.i)
+          totalCachedTokens += toNumber(mRow.c)
+          const pricing = getPricingForModel(pricingData, mRow.model)
+          if (pricing)
+            estimatedCost +=
+              computeCost(
+                pricing,
+                toNumber(mRow.i),
+                toNumber(mRow.c),
+                toNumber(mRow.o),
+                toNumber(mRow.r)
+              ) ?? 0
         }
       }
-    }
 
-    // 3. Tool Calls
-    const toolRow = hasToolCall
-      ? (db
+      if (hasToolCall) {
+        const toolRow = db
           .prepare(
             `SELECT COUNT(*) AS total, SUM(CASE WHEN tc.status = 'ok' OR tc.status = 'unknown' OR tc.exit_code = 0 THEN 1 ELSE 0 END) AS ok FROM tool_call tc JOIN session s ON s.id = tc.session_id WHERE s.project_id = ? ${options.range.startMs != null ? ' AND tc.start_ts >= ? AND tc.start_ts <= ?' : ''}`
           )
-          .get(
-            pid,
-            ...(options.range.startMs != null
-              ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
-              : [])
-          ) as Record<string, unknown>)
-      : { total: 0, ok: 0 }
+          .get(pid, ...(options.range.startMs != null ? listRangeParams : [])) as {
+          total: number
+          ok: number
+        }
+        toolCallCount += toNumber(toolRow?.total)
+        toolOkCount += toNumber(toolRow?.ok)
+      }
+    }
 
-    const projRow = db.prepare('SELECT * FROM project WHERE id = ?').get(pid) as Record<
-      string,
-      unknown
-    >
-    const toolCallCount = toNumber(toolRow?.total)
-    const toolOkCount = toNumber(toolRow?.ok)
-
+    const primaryId = pids[0]
+    const firstSeenVals = pids.map(
+      (pid) => projectRows.find((r) => r.id === pid)?.first_seen_ts ?? Number.MAX_SAFE_INTEGER
+    )
+    const firstSeen =
+      Math.min(...firstSeenVals) === Number.MAX_SAFE_INTEGER ? null : Math.min(...firstSeenVals)
+    const lastSeen = Math.max(
+      ...pids.map((pid) => projectRows.find((r) => r.id === pid)?.last_seen_ts ?? 0)
+    )
     projects.push({
-      id: String(projRow?.id ?? pid),
-      name: String(projRow?.name ?? ''),
-      rootPath: (projRow?.root_path as string | null) ?? null,
-      gitRemote: (projRow?.git_remote as string | null) ?? null,
-      firstSeenTs: projRow?.first_seen_ts == null ? null : toNumber(projRow.first_seen_ts),
-      lastSeenTs: projRow?.last_seen_ts == null ? null : toNumber(projRow.last_seen_ts),
-      sessionCount: toNumber(sessionCountRow?.c),
-      modelCallCount: 0, // removed from query for simplicity, can add back if critical
+      id: primaryId,
+      name: displayRow.name ?? '',
+      rootPath: pids.length > 1 ? null : displayRow.root_path,
+      gitRemote: displayRow.git_remote,
+      firstSeenTs: firstSeen,
+      lastSeenTs: lastSeen || null,
+      sessionCount,
+      modelCallCount: 0,
       toolCallCount,
       totalTokens,
       cacheHitRate: totalInputTokens > 0 ? totalCachedTokens / totalInputTokens : 0,
@@ -316,7 +411,8 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
     })
   }
 
-  return { total: aggregates.totalProjects, projects, aggregates }
+  const aggregatesMerged = { ...aggregates, totalProjects: totalMerged }
+  return { total: totalMerged, projects, aggregates: aggregatesMerged }
 }
 
 export interface DailyProjectStat {
@@ -338,19 +434,62 @@ export interface ProjectDetailResult {
   tokenBreakdown: ModelBreakdown[]
 }
 
+type ProjectRowForGroup = {
+  id: string
+  name: string
+  root_path: string | null
+  git_remote: string | null
+  first_seen_ts: number | null
+  last_seen_ts: number | null
+}
+
+function canonicalNameFromRow(row: ProjectRowForGroup): string {
+  const fromRemote = repoNameFromRemoteUrl(row.git_remote)
+  if (fromRemote) return fromRemote
+  return (row.name || '').trim().toLowerCase() || 'unknown'
+}
+
+/**
+ * Resolves all project IDs that belong to the same logical project (same canonical name).
+ * Used so the detail view can aggregate across all workspaces/checkouts.
+ */
+function getProjectGroup(
+  db: ReturnType<typeof getDatabase>,
+  projectId: string
+): { projectIds: string[]; displayRow: ProjectRowForGroup } | null {
+  const projRow = db
+    .prepare(
+      'SELECT id, name, root_path, git_remote, first_seen_ts, last_seen_ts FROM project WHERE id = ?'
+    )
+    .get(projectId) as ProjectRowForGroup | undefined
+  if (!projRow) return null
+
+  const canonical = canonicalNameFromRow(projRow)
+  const allRows = db
+    .prepare('SELECT id, name, root_path, git_remote, first_seen_ts, last_seen_ts FROM project')
+    .all() as ProjectRowForGroup[]
+  const sameGroup = allRows.filter((r) => canonicalNameFromRow(r) === canonical)
+  if (sameGroup.length === 0) return null
+
+  const projectIds = sameGroup.map((r) => r.id)
+  const displayRow =
+    sameGroup.find((r) => r.git_remote) ??
+    sameGroup.sort((a, b) => (b.last_seen_ts ?? 0) - (a.last_seen_ts ?? 0))[0]
+  return { projectIds, displayRow }
+}
+
 export function getProjectDetail(projectId: string, range: DateRange): ProjectDetailResult {
   const db = getDatabase()
   if (!tableExists(db, 'project') || !tableExists(db, 'project_ref')) {
     return { project: null, branches: [], history: [], tokenBreakdown: [] }
   }
 
-  const projRow = db.prepare('SELECT * FROM project WHERE id = ?').get(projectId) as
-    | Record<string, unknown>
-    | undefined
-  if (!projRow) {
+  const group = getProjectGroup(db, projectId)
+  if (!group) {
     return { project: null, branches: [], history: [], tokenBreakdown: [] }
   }
 
+  const { projectIds, displayRow } = group
   const pricingData = getPricingSync()
   const hasModelCall = tableExists(db, 'model_call')
   const hasToolCall = tableExists(db, 'tool_call')
@@ -358,17 +497,19 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
   const rangeWhere = range.startMs != null ? ' AND s.ts >= ? AND s.ts <= ?' : ''
   const rangeParams =
     range.startMs != null ? [range.startMs, range.endMs ?? Number.MAX_SAFE_INTEGER] : []
+  const placeholders = projectIds.map(() => '?').join(',')
+  const mainParams = [...projectIds, ...rangeParams]
 
-  // 1. Branches
+  // 1. Branches (all refs across all project_ids in group)
   const refRows = db
     .prepare(
       `SELECT pr.branch, pr."commit",
         (SELECT COUNT(*) FROM session s WHERE s.project_ref_id = pr.id ${rangeWhere}) AS session_count
        FROM project_ref pr
-       WHERE pr.project_id = ?
+       WHERE pr.project_id IN (${placeholders})
        ORDER BY pr.last_seen_ts DESC NULLS LAST`
     )
-    .all(projectId, ...rangeParams) as Record<string, unknown>[]
+    .all(...projectIds) as Record<string, unknown>[]
 
   const branches = refRows.map((r) => ({
     branch: (r.branch as string | null) ?? null,
@@ -376,10 +517,9 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
     sessionCount: toNumber(r.session_count),
   }))
 
-  const mainParams = [projectId, ...rangeParams]
-  const mainWhere = `session s WHERE project_id = ? ${range.startMs != null ? ' AND ts >= ? AND ts <= ?' : ''}`
+  const mainWhere = `session s WHERE project_id IN (${placeholders}) ${range.startMs != null ? ' AND ts >= ? AND ts <= ?' : ''}`
 
-  // 2. Counts
+  // 2. Counts (aggregate across all project_ids)
   const sessionCountRow = db
     .prepare(`SELECT COUNT(*) AS c FROM ${mainWhere}`)
     .get(...mainParams) as { c: number } | undefined
@@ -391,7 +531,7 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
   let estimatedCost = 0
   const tokenBreakdown: ModelBreakdown[] = []
 
-  // 3. Model Stats & Breakdown
+  // 3. Model Stats & Breakdown (aggregate across all project_ids)
   if (hasModelCall) {
     const modelUsageRows = db
       .prepare(
@@ -404,7 +544,7 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
          COALESCE(SUM(mc.reasoning_tokens), 0) AS r
        FROM model_call mc 
        JOIN session s ON s.id = mc.session_id 
-       WHERE s.project_id = ? ${range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''}
+       WHERE s.project_id IN (${placeholders}) ${range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''}
        GROUP BY mc.model`
       )
       .all(...mainParams) as Array<{
@@ -442,7 +582,6 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
     }
   }
 
-  // 3. Tool Stats
   const toolStats = hasToolCall
     ? (db
         .prepare(
@@ -451,7 +590,7 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
         SUM(CASE WHEN tc.status = 'ok' OR tc.status = 'unknown' OR tc.exit_code = 0 THEN 1 ELSE 0 END) AS ok 
        FROM tool_call tc 
        JOIN session s ON s.id = tc.session_id 
-       WHERE s.project_id = ? ${range.startMs != null ? ' AND tc.start_ts >= ? AND tc.start_ts <= ?' : ''}`
+       WHERE s.project_id IN (${placeholders}) ${range.startMs != null ? ' AND tc.start_ts >= ? AND tc.start_ts <= ?' : ''}`
         )
         .get(...mainParams) as { total: number; ok: number })
     : { total: 0, ok: 0 }
@@ -459,9 +598,7 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
   const toolCallCount = toNumber(toolStats?.total)
   const toolOkCount = toNumber(toolStats?.ok)
 
-  // 4. History (Sessions per day)
-  // For MVP, just sessions per day. Tokens per day requires more complex query or model_call join.
-  // SQLite `strftime`
+  // 4. History (sessions per day, aggregated across all project_ids)
   const historyRows = db
     .prepare(
       `
@@ -469,12 +606,12 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
       strftime('%Y-%m-%d', s.ts / 1000, 'unixepoch') as day,
       COUNT(*) as count
     FROM session s
-    WHERE project_id = ? ${rangeWhere}
+    WHERE project_id IN (${placeholders}) ${rangeWhere}
     GROUP BY day
     ORDER BY day ASC
   `
     )
-    .all(projectId, ...rangeParams) as Array<{ day: string; count: number }>
+    .all(...mainParams) as Array<{ day: string; count: number }>
 
   const history: DailyProjectStat[] = historyRows.map((r) => ({
     date: r.day,
@@ -482,13 +619,30 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
     value: toNumber(r.count),
   }))
 
+  const firstSeen = Math.min(
+    ...projectIds.map((pid) => {
+      const row = db.prepare('SELECT first_seen_ts FROM project WHERE id = ?').get(pid) as {
+        first_seen_ts: number | null
+      }
+      return row?.first_seen_ts ?? Number.MAX_SAFE_INTEGER
+    })
+  )
+  const lastSeen = Math.max(
+    ...projectIds.map((pid) => {
+      const row = db.prepare('SELECT last_seen_ts FROM project WHERE id = ?').get(pid) as {
+        last_seen_ts: number | null
+      }
+      return row?.last_seen_ts ?? 0
+    })
+  )
+
   const project: ProjectListItem = {
-    id: String(projRow.id ?? ''),
-    name: String(projRow.name ?? ''),
-    rootPath: (projRow.root_path as string | null) ?? null,
-    gitRemote: (projRow.git_remote as string | null) ?? null,
-    firstSeenTs: projRow.first_seen_ts == null ? null : toNumber(projRow.first_seen_ts),
-    lastSeenTs: projRow.last_seen_ts == null ? null : toNumber(projRow.last_seen_ts),
+    id: projectId,
+    name: displayRow.name ?? '',
+    rootPath: projectIds.length > 1 ? null : displayRow.root_path,
+    gitRemote: displayRow.git_remote,
+    firstSeenTs: firstSeen === Number.MAX_SAFE_INTEGER ? null : firstSeen,
+    lastSeenTs: lastSeen || null,
     sessionCount,
     modelCallCount: 0,
     toolCallCount,
