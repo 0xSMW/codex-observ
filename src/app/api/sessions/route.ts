@@ -21,18 +21,28 @@ export async function GET(request: Request) {
     const search = parseSearchParam(url.searchParams, ['q', 'search'])
     const models = parseListParam(url.searchParams, ['models', 'model'])
     const providers = parseListParam(url.searchParams, ['providers', 'provider'])
+    const project = parseSearchParam(url.searchParams, ['project', 'projectId'])
+    const branch = parseSearchParam(url.searchParams, ['branch'])
+    const worktree = parseSearchParam(url.searchParams, ['worktree', 'projectRefId'])
+    const originator = parseSearchParam(url.searchParams, ['originator'])
+    const cliVersion = parseSearchParam(url.searchParams, ['cliVersion', 'cli_version'])
 
     const { sessions, total } = getSessionsList({
       range,
       search,
       models: models.length ? models : undefined,
       providers: providers.length ? providers : undefined,
+      project: project ?? undefined,
+      branch: branch ?? undefined,
+      worktree: worktree ?? undefined,
+      originator: originator ?? undefined,
+      cliVersion: cliVersion ?? undefined,
       pagination,
     })
 
     return jsonOk({
       range: rangeToResponse(range),
-      filters: { search, models, providers },
+      filters: { search, models, providers, project, branch, worktree, originator, cliVersion },
       pagination: paginationToResponse(pagination, total),
       sessions,
     })
