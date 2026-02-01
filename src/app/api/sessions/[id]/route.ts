@@ -75,7 +75,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       },
     })
   } catch (error) {
-    console.error('sessions:detail failed', error)
+    const err = error instanceof Error ? error : new Error(String(error))
+    console.error('sessions:detail failed', err.message, err.stack)
     return jsonError('Failed to load session', 'internal_error', 500)
   }
 }
