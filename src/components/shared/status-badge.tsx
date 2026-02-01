@@ -7,6 +7,7 @@ const STATUS_STYLES: Record<string, string> = {
   failed: 'bg-destructive/10 text-destructive',
   partial: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
   unknown: 'bg-muted text-muted-foreground',
+  'n/a': 'bg-muted text-muted-foreground',
 }
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
