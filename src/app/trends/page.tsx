@@ -138,7 +138,6 @@ export default function TrendsPage() {
             />
           ) : (
             <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-2">
-              
               <ChartCard title="Daily cost" description="Cost for period based on model pricing">
                 <CostChart data={series} />
               </ChartCard>
