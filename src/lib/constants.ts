@@ -7,6 +7,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { title: 'Overview', href: '/', icon: 'Gauge', description: 'KPIs and trends' },
+  { title: 'Projects', href: '/projects', icon: 'FolderGit2', description: 'Project rollups' },
   { title: 'Sessions', href: '/sessions', icon: 'MessageSquare', description: 'Session history' },
   { title: 'Tools', href: '/tools', icon: 'TerminalSquare', description: 'Tool call analytics' },
   { title: 'Models', href: '/models', icon: 'Cpu', description: 'Models & providers' },
