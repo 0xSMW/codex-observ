@@ -64,7 +64,7 @@ export function Sidebar() {
       <div className={cn('hidden shrink-0 md:block', widthClass)} aria-hidden />
       <aside
         className={cn(
-          'bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed left-0 top-0 z-20 hidden h-screen flex-col md:flex',
+          'bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed left-0 top-0 z-20 hidden h-screen select-none flex-col md:flex',
           widthClass
         )}
       >
