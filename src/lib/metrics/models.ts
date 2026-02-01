@@ -27,6 +27,7 @@ export interface ModelSummary {
 export interface ModelsListResult {
   total: number
   models: ModelSummary[]
+  aggregates: ModelsAggregates
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -46,7 +47,11 @@ function toNumber(value: unknown, fallback = 0): number {
 export function getModelsList(options: ModelsListOptions): ModelsListResult {
   const db = getDatabase()
   if (!tableExists(db, 'model_call')) {
-    return { total: 0, models: [] }
+    return { 
+      total: 0, 
+      models: [], 
+      aggregates: { totalCalls: 0, totalTokens: 0, totalCost: 0, avgDurationMs: 0 } 
+    }
   }
 
   const where: string[] = []
@@ -110,5 +115,34 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
     } satisfies ModelSummary
   })
 
-  return { total, models }
+  // Calculate Aggregates
+  let totalCalls = 0
+  let totalTokens = 0
+  let totalCost = 0
+  let totalDuration = 0
+  let modelCount = 0
+
+  for (const m of models) {
+    totalCalls += m.callCount
+    totalTokens += m.tokens.total
+    totalCost += (m.estimatedCost ?? 0)
+    totalDuration += m.avgDurationMs
+    modelCount++
+  }
+  
+  const aggregates: ModelsAggregates = {
+      totalCalls,
+      totalTokens,
+      totalCost,
+      avgDurationMs: modelCount > 0 ? totalDuration / modelCount : 0
+  }
+
+  return { total, models, aggregates }
+}
+
+export interface ModelsAggregates {
+  totalCalls: number
+  totalTokens: number
+  totalCost: number
+  avgDurationMs: number
 }
