@@ -24,11 +24,11 @@ import {
 } from '@/components/ui/chart'
 
 const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
+  'var(--foreground)',
+  'var(--foreground)',
+  'var(--foreground)',
+  'var(--foreground)',
+  'var(--foreground)',
 ]
 
 interface ProjectHistoryChartProps {
@@ -39,7 +39,7 @@ export function ProjectHistoryChart({ data }: ProjectHistoryChartProps) {
   if (!data || data.length === 0) return null
 
   const chartConfig = {
-    value: { label: 'Sessions', color: 'hsl(var(--chart-1))' },
+    value: { label: 'Sessions', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   return (
@@ -51,10 +51,10 @@ export function ProjectHistoryChart({ data }: ProjectHistoryChartProps) {
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
           <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="date"
-              stroke="#888888"
+              stroke="var(--muted-foreground)"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -64,7 +64,7 @@ export function ProjectHistoryChart({ data }: ProjectHistoryChartProps) {
               }
             />
             <YAxis
-              stroke="#888888"
+              stroke="var(--muted-foreground)"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -78,7 +78,7 @@ export function ProjectHistoryChart({ data }: ProjectHistoryChartProps) {
             <Line
               type="monotone"
               dataKey="value"
-              stroke="var(--color-value)"
+              stroke="var(--foreground)"
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 6 }}
@@ -156,7 +156,7 @@ export function ProjectTokenUsageChart({ data }: ProjectTokenBreakdownProps) {
   const sortedData = [...data].sort((a, b) => b.tokens - a.tokens)
 
   const chartConfig = {
-    tokens: { label: 'Tokens', color: 'hsl(var(--chart-2))' },
+    tokens: { label: 'Tokens', color: 'var(--foreground)' },
   } satisfies Parameters<typeof ChartContainer>[0]['config']
 
   return (
@@ -172,12 +172,12 @@ export function ProjectTokenUsageChart({ data }: ProjectTokenBreakdownProps) {
             layout="vertical"
             margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
           >
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis type="number" hide />
             <YAxis
               type="category"
               dataKey="model"
-              stroke="#888888"
+              stroke="var(--muted-foreground)"
               fontSize={11}
               width={100}
               tickLine={false}
@@ -190,7 +190,7 @@ export function ProjectTokenUsageChart({ data }: ProjectTokenBreakdownProps) {
                 <ChartTooltipContent formatter={(value) => formatCompactNumber(Number(value))} />
               }
             />
-            <Bar dataKey="tokens" fill="var(--color-tokens)" radius={[0, 4, 4, 0]} barSize={20} />
+            <Bar dataKey="tokens" fill="var(--foreground)" radius={[0, 4, 4, 0]} barSize={20} />
           </BarChart>
         </ChartContainer>
       </CardContent>
