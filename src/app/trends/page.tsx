@@ -13,6 +13,7 @@ import { CostChart } from '@/components/dashboard/cost-chart'
 import { KpiSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
 import { EmptyState } from '@/components/shared/empty-state'
+import { formatDurationSeconds } from '@/lib/constants'
 
 function getTrend(delta: number | null): 'neutral' | 'up' | 'down' {
   if (delta === null) return 'neutral'
@@ -88,16 +89,18 @@ export default function TrendsPage() {
           change: kpis.avgModelDurationMs?.deltaPct ?? 0,
           trend: getTrend(kpis.avgModelDurationMs?.delta ?? null),
           icon: <Clock className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '—'),
+          formatValue: formatDurationSeconds,
         },
+        /**
         {
           label: 'Avg tool latency',
           value: Number(kpis.avgToolDurationMs?.value) || 0,
           change: kpis.avgToolDurationMs?.deltaPct ?? 0,
           trend: getTrend(kpis.avgToolDurationMs?.delta ?? null),
           icon: <Clock className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '—'),
+          formatValue: formatDurationSeconds,
         },
+         */
       ]
     : []
 
@@ -134,7 +137,14 @@ export default function TrendsPage() {
               description="Once Codex sessions are ingested, charts will appear here."
             />
           ) : (
-            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-2">
+              
+              <ChartCard title="Daily cost" description="Cost for period based on model pricing">
+                <CostChart data={series} />
+              </ChartCard>
+              <ChartCard title="Model calls" description="Total model invocations per day">
+                <CallsChart data={series} />
+              </ChartCard>
               <ChartCard
                 title="Token throughput"
                 description="Input, cached input, and output tokens"
@@ -146,12 +156,6 @@ export default function TrendsPage() {
                 description="Percent of input tokens served from cache"
               >
                 <CacheChart data={series} />
-              </ChartCard>
-              <ChartCard title="Daily cost" description="Cost for period based on model pricing">
-                <CostChart data={series} />
-              </ChartCard>
-              <ChartCard title="Model calls" description="Total model invocations per day">
-                <CallsChart data={series} />
               </ChartCard>
             </div>
           )}
