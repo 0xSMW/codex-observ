@@ -21,6 +21,7 @@ import {
   formatCompactNumber,
   formatCost,
   formatDuration,
+  formatDurationSeconds,
   formatPercent,
   formatCurrency,
 } from '@/lib/constants'
@@ -69,7 +70,7 @@ export default function ModelsPage() {
             />
             <KPIStatCard
               title="Avg. Duration"
-              value={formatDuration(aggregates.avgDurationMs)}
+              value={formatDurationSeconds(aggregates.avgDurationMs)}
               icon={<Clock className="h-4 w-4 text-muted-foreground" />}
             />
           </div>
@@ -130,7 +131,7 @@ export default function ModelsPage() {
                         {formatPercent(model.tokens.cacheHitRate)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatDuration(model.avgDurationMs)}
+                        {formatDurationSeconds(model.avgDurationMs)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -194,7 +195,7 @@ export default function ModelsPage() {
                         {formatPercent(provider.tokens.cacheHitRate)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {formatDuration(provider.avgModelDurationMs)}
+                        {formatDurationSeconds(provider.avgModelDurationMs)}
                       </TableCell>
                     </TableRow>
                   ))}
