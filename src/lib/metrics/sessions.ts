@@ -8,6 +8,11 @@ export interface SessionsListOptions {
   search?: string | null
   models?: string[]
   providers?: string[]
+  project?: string | null
+  branch?: string | null
+  worktree?: string | null
+  originator?: string | null
+  cliVersion?: string | null
   pagination: Pagination
 }
 
@@ -42,7 +47,6 @@ export interface SessionsListResult {
   sessions: SessionListItem[]
 }
 
-
 function buildWhere(options: SessionsListOptions, hasModelCall: boolean) {
   const where: string[] = []
   const params: unknown[] = []
@@ -71,6 +75,31 @@ function buildWhere(options: SessionsListOptions, hasModelCall: boolean) {
         .join(',')}))`
     )
     params.push(...options.models)
+  }
+
+  if (options.project) {
+    where.push('s.project_id = ?')
+    params.push(options.project)
+  }
+
+  if (options.branch) {
+    where.push('s.git_branch = ?')
+    params.push(options.branch)
+  }
+
+  if (options.worktree) {
+    where.push('s.project_ref_id = ?')
+    params.push(options.worktree)
+  }
+
+  if (options.originator) {
+    where.push('s.originator = ?')
+    params.push(options.originator)
+  }
+
+  if (options.cliVersion) {
+    where.push('s.cli_version = ?')
+    params.push(options.cliVersion)
   }
 
   return { where, params }
