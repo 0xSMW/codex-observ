@@ -149,14 +149,11 @@ export function getSessionDetail(
 
   const statsWhereMessage: string[] = ['session_id = ?']
   const statsWhereModel: string[] = ['session_id = ?']
-  const statsWhereTool: string[] = ['session_id = ?']
   const statsParamsMessage: unknown[] = [sessionId]
   const statsParamsModel: unknown[] = [sessionId]
-  const statsParamsTool: unknown[] = [sessionId]
 
   buildRange('ts', range, statsWhereMessage, statsParamsMessage)
   buildRange('ts', range, statsWhereModel, statsParamsModel)
-  buildRange('start_ts', range, statsWhereTool, statsParamsTool)
 
   const messageCount = hasMessage
     ? toNumber(
@@ -189,13 +186,29 @@ export function getSessionDetail(
         .get(...statsParamsModel) as Record<string, unknown> | undefined)
     : undefined
 
+  // Session activity window: tool_calls from log ingest have session_id NULL; include those
+  // whose start_ts falls in this session's window. Log timestamps may be local vs UTC so use
+  // a generous window (session start - 24h to session end + 1h).
+  const sessionTs = session.ts
+  const modelFirstTs = modelRow ? toNumber(modelRow.first_ts) : null
+  const modelLastTs = modelRow ? toNumber(modelRow.last_ts) : null
+  const sessionEnd =
+    modelLastTs !== null ? Math.max(sessionTs, modelLastTs) : sessionTs + 24 * 60 * 60 * 1000
+  const windowStart = (modelFirstTs !== null ? Math.min(sessionTs, modelFirstTs) : sessionTs) - 24 * 60 * 60 * 1000
+  const windowEnd = sessionEnd + 60 * 60 * 1000
+  const statsWhereTool: string[] = [
+    '(session_id = ? OR (session_id IS NULL AND start_ts >= ? AND start_ts <= ?))',
+  ]
+  const statsParamsTool: unknown[] = [sessionId, windowStart, windowEnd]
+  buildRange('start_ts', range, statsWhereTool, statsParamsTool)
+
   const toolRow = hasToolCall
     ? (db
         .prepare(
           `SELECT
             COUNT(*) AS count,
             COALESCE(SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END), 0) AS ok_count,
-            AVG(COALESCE(duration_ms, end_ts - start_ts)) AS avg_duration_ms,
+            COALESCE(AVG(CASE WHEN duration_ms IS NOT NULL THEN duration_ms WHEN end_ts IS NOT NULL AND start_ts IS NOT NULL THEN (end_ts - start_ts) ELSE NULL END), 0) AS avg_duration_ms,
             MIN(start_ts) AS first_ts,
             MAX(COALESCE(end_ts, start_ts)) AS last_ts
           FROM tool_call
@@ -288,23 +301,33 @@ export function getSessionDetail(
         LIMIT ? OFFSET ?`
       )
       .all(...params, modelPagination.limit, modelPagination.offset) as Record<string, unknown>[]
-    modelCalls.items = rows.map((row) => ({
-      id: String(row.id ?? ''),
-      ts: toNumber(row.ts),
-      model: (row.model as string | null) ?? null,
-      inputTokens: toNumber(row.input_tokens),
-      cachedInputTokens: toNumber(row.cached_input_tokens),
-      outputTokens: toNumber(row.output_tokens),
-      reasoningTokens: toNumber(row.reasoning_tokens),
-      totalTokens: toNumber(row.total_tokens),
-      durationMs: row.duration_ms === null ? null : toNumber(row.duration_ms),
-    }))
+    modelCalls.items = rows.map((row, index) => {
+      const ts = toNumber(row.ts)
+      let durationMs: number | null = row.duration_ms === null ? null : toNumber(row.duration_ms)
+      if (durationMs === null && index + 1 < rows.length) {
+        const nextTs = toNumber(rows[index + 1]?.ts)
+        if (Number.isFinite(nextTs) && nextTs > ts) durationMs = nextTs - ts
+      }
+      return {
+        id: String(row.id ?? ''),
+        ts,
+        model: (row.model as string | null) ?? null,
+        inputTokens: toNumber(row.input_tokens),
+        cachedInputTokens: toNumber(row.cached_input_tokens),
+        outputTokens: toNumber(row.output_tokens),
+        reasoningTokens: toNumber(row.reasoning_tokens),
+        totalTokens: toNumber(row.total_tokens),
+        durationMs,
+      }
+    })
   }
 
   const toolCalls: ListResult<ToolCallItem> = { total: 0, items: [] }
   if (hasToolCall) {
-    const where: string[] = ['session_id = ?']
-    const params: unknown[] = [sessionId]
+    const where: string[] = [
+      '(session_id = ? OR (session_id IS NULL AND start_ts >= ? AND start_ts <= ?))',
+    ]
+    const params: unknown[] = [sessionId, windowStart, windowEnd]
     buildRange('start_ts', range, where, params)
     const whereSql = where.join(' AND ')
     const countRow = db
@@ -323,12 +346,10 @@ export function getSessionDetail(
     toolCalls.items = rows.map((row) => {
       const startTs = toNumber(row.start_ts)
       const endTs = row.end_ts === null ? null : toNumber(row.end_ts)
-      const durationMs =
-        row.duration_ms !== null && row.duration_ms !== undefined
-          ? toNumber(row.duration_ms)
-          : endTs !== null && Number.isFinite(startTs) && Number.isFinite(endTs)
-            ? endTs - startTs
-            : null
+      let durationMs: number | null = row.duration_ms === null ? null : toNumber(row.duration_ms)
+      if (durationMs === null && startTs !== null && endTs !== null) {
+        durationMs = endTs - startTs
+      }
       return {
         id: String(row.id ?? ''),
         toolName: String(row.tool_name ?? ''),
@@ -339,9 +360,9 @@ export function getSessionDetail(
         durationMs,
         exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
         error: (row.error as string | null) ?? null,
-        stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
-        stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
-        correlationKey: (row.correlation_key as string | null) ?? null,
+      stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
+      stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
+      correlationKey: (row.correlation_key as string | null) ?? null,
       }
     })
   }
