@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     }
 
     const pricingData = await fetchPricing()
-    const { models, total } = getModelsList({
+    const { models, total, aggregates } = getModelsList({
       range,
       pagination,
       pricingData,
@@ -29,6 +29,7 @@ export async function GET(request: Request) {
       range: rangeToResponse(range),
       pagination: paginationToResponse(pagination, total),
       models,
+      aggregates,
     })
   } catch (error) {
     console.error('models:list failed', error)
