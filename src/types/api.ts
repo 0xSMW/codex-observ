@@ -99,6 +99,27 @@ export type SessionsResponse = {
   sessions: SessionListItem[]
 }
 
+export type SessionMediansPoint = {
+  date: string
+  medianCalls: number
+  medianTokens: number
+  medianCost: number
+  medianDurationMs: number
+}
+
+export type SessionMediansSummary = {
+  medianCalls: number
+  medianTokens: number
+  medianCost: number
+  medianDurationMs: number
+}
+
+export type SessionsMediansResponse = {
+  range?: RangeResponse
+  series: SessionMediansPoint[]
+  summary: SessionMediansSummary
+}
+
 export type ProjectListItem = {
   id: string
   name: string
