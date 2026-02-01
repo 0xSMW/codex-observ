@@ -165,7 +165,7 @@ export function getSessionDetail(
             .prepare(
               `SELECT COUNT(*) AS count FROM message WHERE ${statsWhereMessage.join(' AND ')}`
             )
-            .get(statsParamsMessage) as { count: number } | undefined
+            .get(...statsParamsMessage) as { count: number } | undefined
         )?.count
       )
     : 0
@@ -186,7 +186,7 @@ export function getSessionDetail(
           FROM model_call
           WHERE ${statsWhereModel.join(' AND ')}`
         )
-        .get(statsParamsModel) as Record<string, unknown> | undefined)
+        .get(...statsParamsModel) as Record<string, unknown> | undefined)
     : undefined
 
   const toolRow = hasToolCall
@@ -194,14 +194,14 @@ export function getSessionDetail(
         .prepare(
           `SELECT
             COUNT(*) AS count,
-            COALESCE(SUM(CASE WHEN status = 'ok' OR exit_code = 0 THEN 1 ELSE 0 END), 0) AS ok_count,
-            COALESCE(AVG(duration_ms), 0) AS avg_duration_ms,
+            COALESCE(SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END), 0) AS ok_count,
+            AVG(COALESCE(duration_ms, end_ts - start_ts)) AS avg_duration_ms,
             MIN(start_ts) AS first_ts,
             MAX(COALESCE(end_ts, start_ts)) AS last_ts
           FROM tool_call
           WHERE ${statsWhereTool.join(' AND ')}`
         )
-        .get(statsParamsTool) as Record<string, unknown> | undefined)
+        .get(...statsParamsTool) as Record<string, unknown> | undefined)
     : undefined
 
   const inputTokens = toNumber(modelRow?.input_tokens)
@@ -320,20 +320,30 @@ export function getSessionDetail(
         LIMIT ? OFFSET ?`
       )
       .all(...params, toolPagination.limit, toolPagination.offset) as Record<string, unknown>[]
-    toolCalls.items = rows.map((row) => ({
-      id: String(row.id ?? ''),
-      toolName: String(row.tool_name ?? ''),
-      command: (row.command as string | null) ?? null,
-      status: String(row.status ?? 'unknown'),
-      startTs: toNumber(row.start_ts),
-      endTs: row.end_ts === null ? null : toNumber(row.end_ts),
-      durationMs: row.duration_ms === null ? null : toNumber(row.duration_ms),
-      exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
-      error: (row.error as string | null) ?? null,
-      stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
-      stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
-      correlationKey: (row.correlation_key as string | null) ?? null,
-    }))
+    toolCalls.items = rows.map((row) => {
+      const startTs = toNumber(row.start_ts)
+      const endTs = row.end_ts === null ? null : toNumber(row.end_ts)
+      const durationMs =
+        row.duration_ms !== null && row.duration_ms !== undefined
+          ? toNumber(row.duration_ms)
+          : endTs !== null && Number.isFinite(startTs) && Number.isFinite(endTs)
+            ? endTs - startTs
+            : null
+      return {
+        id: String(row.id ?? ''),
+        toolName: String(row.tool_name ?? ''),
+        command: (row.command as string | null) ?? null,
+        status: String(row.status ?? 'unknown'),
+        startTs,
+        endTs,
+        durationMs,
+        exitCode: row.exit_code === null ? null : toNumber(row.exit_code),
+        error: (row.error as string | null) ?? null,
+        stdoutBytes: row.stdout_bytes === null ? null : toNumber(row.stdout_bytes),
+        stderrBytes: row.stderr_bytes === null ? null : toNumber(row.stderr_bytes),
+        correlationKey: (row.correlation_key as string | null) ?? null,
+      }
+    })
   }
 
   return {
