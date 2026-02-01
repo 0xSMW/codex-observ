@@ -35,10 +35,18 @@ export function useApiData<T>(
 
     fetch(url, { signal: controller.signal })
       .then(async (response) => {
+        const text = await response.text()
         if (!response.ok) {
-          throw new Error(`Request failed (${response.status})`)
+          let message = `Request failed (${response.status})`
+          try {
+            const body = JSON.parse(text) as { error?: string }
+            if (typeof body?.error === 'string') message = body.error
+          } catch {
+            // ignore non-JSON body (e.g. HTML error page)
+          }
+          throw new Error(message)
         }
-        return response.json() as Promise<T>
+        return JSON.parse(text) as T
       })
       .then((json) => {
         setData(json)
