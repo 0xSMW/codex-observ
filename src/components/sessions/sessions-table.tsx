@@ -9,7 +9,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { formatCompactNumber, formatDuration } from '@/lib/constants'
+import { formatCompactNumber, formatDuration, formatDurationSeconds } from '@/lib/constants'
 import type { SessionListItem } from '@/types/api'
 
 function getWorkspace(cwd: string | null) {
@@ -62,7 +62,9 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
                 {formatCompactNumber(session.tokens.total)}
               </TableCell>
               <TableCell className="text-right tabular-nums">
-                {formatDuration(session.durationMs === null ? Number.NaN : session.durationMs)}
+                {formatDurationSeconds(
+                  session.durationMs === null ? Number.NaN : session.durationMs
+                )}
               </TableCell>
               <TableCell className="text-right">
                 <StatusBadge status={successStatus(session.successRate, session.toolCallCount)} />
