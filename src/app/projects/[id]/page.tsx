@@ -11,8 +11,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useEffect } from 'react'
 import { useDateRange } from '@/hooks/use-date-range'
 import { useApiData } from '@/hooks/use-api'
+import { useHeaderTitle } from '@/components/layout/header-title-context'
 import { formatCompactNumber, formatPercent, formatCurrency } from '@/lib/constants'
 import { formatGitRemoteDisplay } from '@/lib/format-git-remote'
 import { KpiSkeleton } from '@/components/shared/loading-skeleton'
@@ -48,6 +50,7 @@ export default function ProjectDetailPage() {
   const params = useParams()
   const id = typeof params?.id === 'string' ? params.id : ''
   const { range } = useDateRange()
+  const { setTitle, setDescription } = useHeaderTitle()
 
   const paramsStr =
     range?.from && range?.to
@@ -56,6 +59,21 @@ export default function ProjectDetailPage() {
   const url = id ? `/api/projects/${encodeURIComponent(id)}${paramsStr}` : null
 
   const { data, error, isLoading, refresh } = useApiData<ProjectDetailResponse>(url)
+
+  useEffect(() => {
+    if (!data?.project) {
+      setTitle(null)
+      setDescription(null)
+      return
+    }
+    const title = formatGitRemoteDisplay(data.project.gitRemote) ?? data.project.name
+    setTitle(title)
+    setDescription('Project detail')
+    return () => {
+      setTitle(null)
+      setDescription(null)
+    }
+  }, [data?.project?.gitRemote, data?.project?.name, setTitle, setDescription])
 
   if (!id) {
     return (
@@ -200,18 +218,21 @@ export default function ProjectDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {branches.map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{row.branch ?? '—'}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground flex items-center gap-1">
-                      {row.commit ? <GitCommit className="h-3 w-3" /> : null}
-                      {row.commit ? row.commit.substring(0, 7) : '—'}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatCompactNumber(row.sessionCount)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {branches
+                  .slice()
+                  .sort((a, b) => b.sessionCount - a.sessionCount)
+                  .map((row, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{row.branch ?? '—'}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground flex items-center gap-1">
+                        {row.commit ? <GitCommit className="h-3 w-3" /> : null}
+                        {row.commit ? row.commit.substring(0, 7) : '—'}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCompactNumber(row.sessionCount)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           </CardContent>
