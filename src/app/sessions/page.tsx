@@ -5,10 +5,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useSessions } from '@/hooks/use-sessions'
+import { useSessionsMedians } from '@/hooks/use-sessions-medians'
 import { useModels } from '@/hooks/use-models'
 import { useProviders } from '@/hooks/use-providers'
 import { useProjects } from '@/hooks/use-projects'
 import { SessionFilters, type SessionFiltersValue } from '@/components/sessions/session-filters'
+import { SessionsMediansTiles } from '@/components/sessions/sessions-medians-charts'
 import { SessionsTable } from '@/components/sessions/sessions-table'
 import { TableSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
@@ -37,6 +39,7 @@ export default function SessionsPage() {
   }
 
   const { data, error, isLoading, refresh } = useSessions(query)
+  const { data: mediansData } = useSessionsMedians(range)
   const { data: modelsData } = useModels()
   const { data: providersData } = useProviders()
   const { data: projectsData } = useProjects({
@@ -84,6 +87,8 @@ export default function SessionsPage() {
           setPage(1)
         }}
       />
+
+      {mediansData?.summary ? <SessionsMediansTiles summary={mediansData.summary} /> : null}
 
       {isLoading && !data && <TableSkeleton rows={8} />}
 
