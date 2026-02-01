@@ -1,15 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import {
-  TerminalSquare,
-  Timer,
-  CheckCircle2,
-  AlertTriangle,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
+import { TerminalSquare, Timer, CheckCircle2, AlertTriangle, Search } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useToolCalls, ToolCallsQuery } from '@/hooks/use-tool-calls'
@@ -17,8 +9,14 @@ import { KpiGrid } from '@/components/dashboard/kpi-grid'
 import { ChartSkeleton, KpiSkeleton, TableSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
 import { StatusBadge } from '@/components/shared/status-badge'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
 import {
   Table,
   TableBody,
@@ -163,27 +161,37 @@ export default function ToolsPage() {
               onChange={handleSearchChange}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1 || isLoading}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="text-sm text-muted-foreground min-w-[4rem] text-center">
-              Page {page} of {totalPages || 1}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages || isLoading}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    aria-disabled={page <= 1 || isLoading}
+                    className={
+                      page <= 1 || isLoading ? 'pointer-events-none opacity-50' : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <span className="text-sm text-muted-foreground px-4">
+                    Page {page} of {totalPages || 1}
+                  </span>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    aria-disabled={page >= totalPages || isLoading}
+                    className={
+                      page >= totalPages || isLoading
+                        ? 'pointer-events-none opacity-50'
+                        : 'cursor-pointer'
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
 
         {isLoading && !data && <TableSkeleton rows={5} />}
