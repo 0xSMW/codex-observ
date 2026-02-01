@@ -59,14 +59,24 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
   applyDateRange('ts', options.range, where, params)
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const totalRow = db
-    .prepare(`SELECT COUNT(DISTINCT model) AS total FROM model_call ${whereSql}`)
-    .get(...params) as Record<string, unknown> | undefined
-  const total = toNumber(totalRow?.total)
-
+  // Derive duration from next call's ts when duration_ms is null (same as session-detail)
   const rows = db
     .prepare(
-      `SELECT
+      `WITH with_next_ts AS (
+        SELECT
+          model, ts, duration_ms,
+          input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, total_tokens,
+          LEAD(ts) OVER (PARTITION BY session_id ORDER BY ts) AS next_ts
+        FROM model_call
+        ${whereSql}
+      ),
+      with_effective_duration AS (
+        SELECT
+          model, input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, total_tokens,
+          COALESCE(duration_ms, CASE WHEN next_ts IS NOT NULL AND next_ts > ts THEN next_ts - ts ELSE NULL END) AS effective_duration_ms
+        FROM with_next_ts
+      )
+      SELECT
         model,
         COUNT(*) AS call_count,
         COALESCE(SUM(input_tokens), 0) AS input_tokens,
@@ -74,21 +84,22 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
         COALESCE(SUM(output_tokens), 0) AS output_tokens,
         COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
         COALESCE(SUM(total_tokens), 0) AS total_tokens,
-        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
-      FROM model_call
-      ${whereSql}
+        COALESCE(AVG(effective_duration_ms), 0) AS avg_duration_ms
+      FROM with_effective_duration
       GROUP BY model
-      ORDER BY total_tokens DESC, call_count DESC
-      LIMIT ? OFFSET ?`
+      ORDER BY total_tokens DESC, call_count DESC`
     )
-    .all(...params, options.pagination.limit, options.pagination.offset) as Record<
-    string,
-    unknown
-  >[]
+    .all(...params) as Record<string, unknown>[]
+
+  const total = rows.length
+
+  // Apply pagination in memory
+  const { limit, offset } = options.pagination
+  const paginatedRows = rows.slice(offset, offset + limit)
 
   const pricingData = (options.pricingData ?? null) as Record<string, unknown> | null
 
-  const models = rows.map((row) => {
+  const models = paginatedRows.map((row) => {
     const inputTokens = toNumber(row.input_tokens)
     const cachedInputTokens = toNumber(row.cached_input_tokens)
     const model = String(row.model ?? 'unknown')
@@ -115,26 +126,43 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
     } satisfies ModelSummary
   })
 
-  // Calculate Aggregates
+  // Build full list for aggregate computation (same shape as models but from all rows)
+  const allSummaries = rows.map((row) => {
+    const inputTokens = toNumber(row.input_tokens)
+    const cachedInputTokens = toNumber(row.cached_input_tokens)
+    const model = String(row.model ?? 'unknown')
+    const outputTokens = toNumber(row.output_tokens)
+    const reasoningTokens = toNumber(row.reasoning_tokens)
+    const pricing = getPricingForModel(
+      pricingData as Parameters<typeof getPricingForModel>[0],
+      model
+    )
+    const cost = computeCost(pricing, inputTokens, cachedInputTokens, outputTokens, reasoningTokens)
+    return {
+      callCount: toNumber(row.call_count),
+      totalTokens: toNumber(row.total_tokens),
+      estimatedCost: cost,
+      avgDurationMs: toNumber(row.avg_duration_ms),
+    }
+  })
+
   let totalCalls = 0
   let totalTokens = 0
   let totalCost = 0
-  let totalDuration = 0
-  let modelCount = 0
+  let durationWeightedSum = 0
 
-  for (const m of models) {
-    totalCalls += m.callCount
-    totalTokens += m.tokens.total
-    totalCost += m.estimatedCost ?? 0
-    totalDuration += m.avgDurationMs
-    modelCount++
+  for (const s of allSummaries) {
+    totalCalls += s.callCount
+    totalTokens += s.totalTokens
+    totalCost += s.estimatedCost ?? 0
+    durationWeightedSum += s.avgDurationMs * s.callCount
   }
 
   const aggregates: ModelsAggregates = {
     totalCalls,
     totalTokens,
     totalCost,
-    avgDurationMs: modelCount > 0 ? totalDuration / modelCount : 0,
+    avgDurationMs: totalCalls > 0 ? durationWeightedSum / totalCalls : 0,
   }
 
   return { total, models, aggregates }
