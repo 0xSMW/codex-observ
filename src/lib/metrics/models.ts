@@ -47,10 +47,10 @@ function toNumber(value: unknown, fallback = 0): number {
 export function getModelsList(options: ModelsListOptions): ModelsListResult {
   const db = getDatabase()
   if (!tableExists(db, 'model_call')) {
-    return { 
-      total: 0, 
-      models: [], 
-      aggregates: { totalCalls: 0, totalTokens: 0, totalCost: 0, avgDurationMs: 0 } 
+    return {
+      total: 0,
+      models: [],
+      aggregates: { totalCalls: 0, totalTokens: 0, totalCost: 0, avgDurationMs: 0 },
     }
   }
 
@@ -125,16 +125,16 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
   for (const m of models) {
     totalCalls += m.callCount
     totalTokens += m.tokens.total
-    totalCost += (m.estimatedCost ?? 0)
+    totalCost += m.estimatedCost ?? 0
     totalDuration += m.avgDurationMs
     modelCount++
   }
-  
+
   const aggregates: ModelsAggregates = {
-      totalCalls,
-      totalTokens,
-      totalCost,
-      avgDurationMs: modelCount > 0 ? totalDuration / modelCount : 0
+    totalCalls,
+    totalTokens,
+    totalCost,
+    avgDurationMs: modelCount > 0 ? totalDuration / modelCount : 0,
   }
 
   return { total, models, aggregates }
