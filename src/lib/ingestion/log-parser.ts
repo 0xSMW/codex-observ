@@ -31,8 +31,23 @@ export interface ParseError {
   raw: string
 }
 
+export interface ToolCallEventRecord {
+  id: string
+  session_id: string | null
+  tool_name: string
+  event_type: 'start' | 'exit' | 'failure'
+  ts: number
+  payload: string | null
+  exit_code: number | null
+  source_file: string
+  source_line: number
+  correlation_key: string
+  dedup_key: string
+}
+
 export interface LogParseResult {
   toolCalls: ToolCallRecord[]
+  events: ToolCallEventRecord[]
   newOffset: number
   errors: ParseError[]
 }
@@ -43,6 +58,7 @@ export async function parseLogFile(logPath: string, fromOffset = 0): Promise<Log
   if (!stats) {
     return {
       toolCalls: [],
+      events: [],
       newOffset: 0,
       errors: [
         {
@@ -110,14 +126,14 @@ export async function parseLogFile(logPath: string, fromOffset = 0): Promise<Log
     index += 1
   }
 
-  const toolCalls = correlateToolCalls(
+  const { toolCalls, events } = correlateToolCalls(
     functionCalls,
     toolCallEvents,
     backgroundEvents,
     resolvedPath
   )
 
-  return { toolCalls, newOffset, errors }
+  return { toolCalls, events, newOffset, errors }
 }
 
 interface StartEvent {
@@ -142,12 +158,49 @@ interface EndEvent {
   source_line: number
 }
 
+function buildEventRecord(
+  type: 'start' | 'end',
+  evt: StartEvent | EndEvent,
+  sourceFile: string,
+  correlationKey: string
+): ToolCallEventRecord {
+  const toolName = evt.tool_name ?? 'unknown'
+  const ts = evt.ts
+  const sourceLine = evt.source_line
+  const payload =
+    type === 'start'
+      ? JSON.stringify({ command: evt.command, signature: evt.signature })
+      : JSON.stringify({
+          command: (evt as EndEvent).command,
+          exit_code: (evt as EndEvent).exit_code,
+          duration_ms: (evt as EndEvent).duration_ms,
+          stdout_bytes: (evt as EndEvent).stdout_bytes,
+          stderr_bytes: (evt as EndEvent).stderr_bytes,
+          error: (evt as EndEvent).error,
+        })
+  const eventType = type === 'start' ? 'start' : (evt as EndEvent).event_type
+  const dedupKey = hashString(`${sourceFile}:${sourceLine}:${eventType}:${ts}:${evt.signature}`)
+  return {
+    id: dedupKey,
+    session_id: null,
+    tool_name: toolName,
+    event_type: eventType === 'exit' ? 'exit' : eventType === 'failure' ? 'failure' : 'start',
+    ts,
+    payload,
+    exit_code: type === 'end' ? (evt as EndEvent).exit_code : null,
+    source_file: sourceFile,
+    source_line: sourceLine,
+    correlation_key: correlationKey,
+    dedup_key: dedupKey,
+  }
+}
+
 function correlateToolCalls(
   functionCalls: FunctionCallEvent[],
   toolEvents: ToolCallEvent[],
   backgroundEvents: BackgroundEvent[],
   sourceFile: string
-): ToolCallRecord[] {
+): { toolCalls: ToolCallRecord[]; events: ToolCallEventRecord[] } {
   const events: Array<{ type: 'start' | 'end'; event: StartEvent | EndEvent }> = []
 
   for (const call of functionCalls) {
@@ -218,17 +271,24 @@ function correlateToolCalls(
 
   const pending: StartEvent[] = []
   const results: ToolCallRecord[] = []
+  const eventRecords: ToolCallEventRecord[] = []
 
   for (const entry of events) {
     if (entry.type === 'start') {
       const start = entry.event as StartEvent
       if (!shouldAddStart(pending, start)) continue
+      const corrKey = hashString(`${start.signature}:${start.ts}`)
+      eventRecords.push(buildEventRecord('start', start, sourceFile, corrKey))
       pending.push(start)
       continue
     }
 
     const end = entry.event as EndEvent
     const matchIndex = findMatchingStart(pending, end)
+    const startTs = matchIndex >= 0 ? pending[matchIndex].ts : end.ts
+    const signature = matchIndex >= 0 ? pending[matchIndex].signature : end.signature
+    const corrKey = hashString(`${signature}:${startTs}`)
+    eventRecords.push(buildEventRecord('end', end, sourceFile, corrKey))
 
     if (matchIndex >= 0) {
       const start = pending.splice(matchIndex, 1)[0]
@@ -242,7 +302,7 @@ function correlateToolCalls(
     results.push(buildToolCallRecord({ start, sourceFile }))
   }
 
-  return results
+  return { toolCalls: results, events: eventRecords }
 }
 
 function shouldAddStart(pending: StartEvent[], start: StartEvent): boolean {
