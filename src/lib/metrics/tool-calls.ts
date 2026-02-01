@@ -11,6 +11,11 @@ export interface ToolCallsListOptions {
   tools?: string[]
   sessionId?: string | null
   search?: string | null
+  exitCode?: number | null
+  hasError?: boolean | null
+  minDurationMs?: number | null
+  maxDurationMs?: number | null
+  project?: string | null
 }
 
 export interface ToolCallListItem {
@@ -50,7 +55,6 @@ export interface ToolCallsListResult {
   summary: ToolCallSummary
 }
 
-
 function buildWhere(options: ToolCallsListOptions, range: DateRange) {
   const where: string[] = []
   const params: unknown[] = []
@@ -74,6 +78,31 @@ function buildWhere(options: ToolCallsListOptions, range: DateRange) {
   if (options.search) {
     where.push('command LIKE ?')
     params.push(`%${options.search}%`)
+  }
+
+  if (options.exitCode !== undefined && options.exitCode !== null) {
+    where.push('exit_code = ?')
+    params.push(options.exitCode)
+  }
+
+  if (options.hasError === true) {
+    where.push('error IS NOT NULL AND error != ?')
+    params.push('')
+  }
+
+  if (options.minDurationMs !== undefined && options.minDurationMs !== null) {
+    where.push('duration_ms >= ?')
+    params.push(options.minDurationMs)
+  }
+
+  if (options.maxDurationMs !== undefined && options.maxDurationMs !== null) {
+    where.push('duration_ms <= ?')
+    params.push(options.maxDurationMs)
+  }
+
+  if (options.project) {
+    where.push('session_id IN (SELECT id FROM session WHERE project_id = ?)')
+    params.push(options.project)
   }
 
   return { where, params }
