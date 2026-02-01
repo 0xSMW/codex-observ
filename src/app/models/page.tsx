@@ -1,6 +1,6 @@
 'use client'
 
-import { Cpu, Layers } from 'lucide-react'
+import { Cpu, Layers, DollarSign, MessageSquare, Clock } from 'lucide-react'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -14,9 +14,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ErrorState } from '@/components/shared/error-state'
 import { TableSkeleton } from '@/components/shared/loading-skeleton'
+import { KPIStatCard } from '@/components/shared/kpi-card'
 import { useModels } from '@/hooks/use-models'
 import { useProviders } from '@/hooks/use-providers'
-import { formatCompactNumber, formatCost, formatDuration, formatPercent } from '@/lib/constants'
+import { formatCompactNumber, formatCost, formatDuration, formatPercent, formatCurrency } from '@/lib/constants'
+import { ModelsCostChart, ModelsTokenChart } from '@/components/models/models-charts'
 
 export default function ModelsPage() {
   const {
@@ -32,6 +34,8 @@ export default function ModelsPage() {
     refresh: refreshProviders,
   } = useProviders()
 
+  const aggregates = modelsData?.aggregates
+
   return (
     <Tabs defaultValue="models" className="space-y-6">
       <TabsList>
@@ -40,6 +44,38 @@ export default function ModelsPage() {
       </TabsList>
 
       <TabsContent value="models" className="space-y-6">
+        {aggregates && (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+             <KPIStatCard
+              title="Total Calls"
+              value={formatCompactNumber(aggregates.totalCalls)}
+              icon={<MessageSquare className="h-4 w-4 text-muted-foreground" />}
+            />
+            <KPIStatCard
+              title="Total Tokens"
+              value={formatCompactNumber(aggregates.totalTokens)}
+              icon={<Cpu className="h-4 w-4 text-muted-foreground" />}
+            />
+            <KPIStatCard
+              title="Est. Total Cost"
+              value={formatCurrency(aggregates.totalCost)}
+              icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+            />
+            <KPIStatCard
+              title="Avg. Duration"
+              value={formatDuration(aggregates.avgDurationMs)}
+              icon={<Clock className="h-4 w-4 text-muted-foreground" />}
+            />
+          </div>
+        )}
+        
+        {modelsData && modelsData.models.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2">
+            <ModelsCostChart models={modelsData.models} />
+            <ModelsTokenChart models={modelsData.models} />
+          </div>
+        )}
+
         {modelsLoading && !modelsData && <TableSkeleton rows={6} />}
         {modelsError && !modelsData && (
           <ErrorState
@@ -60,6 +96,7 @@ export default function ModelsPage() {
                     <TableHead>Model</TableHead>
                     <TableHead className="text-right">Calls</TableHead>
                     <TableHead className="text-right">Total tokens</TableHead>
+                    <TableHead className="text-right">Reasoning</TableHead>
                     <TableHead className="text-right">Est. cost</TableHead>
                     <TableHead className="text-right">Cache hit</TableHead>
                     <TableHead className="text-right">Avg duration</TableHead>
@@ -75,6 +112,9 @@ export default function ModelsPage() {
                       <TableCell className="text-right tabular-nums">
                         {formatCompactNumber(model.tokens.total)}
                       </TableCell>
+                       <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {model.tokens.reasoning > 0 ? formatCompactNumber(model.tokens.reasoning) : '—'}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatCost(model.estimatedCost)}
                       </TableCell>
@@ -89,7 +129,7 @@ export default function ModelsPage() {
                   {modelsData.models.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={6}
+                        colSpan={7}
                         className="py-8 text-center text-sm text-muted-foreground"
                       >
                         No model calls recorded.
@@ -126,6 +166,7 @@ export default function ModelsPage() {
                     <TableHead className="text-right">Model calls</TableHead>
                     <TableHead className="text-right">Total tokens</TableHead>
                     <TableHead className="text-right">Cache hit</TableHead>
+                    <TableHead className="text-right">Avg Duration</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -144,12 +185,15 @@ export default function ModelsPage() {
                       <TableCell className="text-right tabular-nums">
                         {formatPercent(provider.tokens.cacheHitRate)}
                       </TableCell>
+                       <TableCell className="text-right tabular-nums">
+                        {formatDuration(provider.avgModelDurationMs)}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {providersData.providers.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="py-8 text-center text-sm text-muted-foreground"
                       >
                         No provider activity recorded.
