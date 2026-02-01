@@ -7,7 +7,7 @@ import { useDateRange } from '@/hooks/use-date-range'
 import { useProjects } from '@/hooks/use-projects'
 import { formatCompactNumber, formatCurrency } from '@/lib/constants'
 import { Input } from '@/components/ui/input'
-import { TableSkeleton } from '@/components/shared/loading-skeleton'
+import { ChartSkeleton, TableSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
 import { EmptyState } from '@/components/shared/empty-state'
 import { KPIStatCard } from '@/components/shared/kpi-card'
@@ -105,9 +105,14 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {data && data.projects.length > 0 && <ProjectsChart projects={data.projects} />}
+      {isLoading && !data && (
+        <div className="space-y-6">
+          <ChartSkeleton />
+          <TableSkeleton rows={8} />
+        </div>
+      )}
 
-      {isLoading && !data && <TableSkeleton rows={8} />}
+      {data && data.projects.length > 0 && <ProjectsChart projects={data.projects} />}
 
       {error && !data && (
         <ErrorState description="We couldn't load projects. Try refreshing." onRetry={refresh} />
