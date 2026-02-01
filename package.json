@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "ingest:smoke": "tsx scripts/ingest-smoke.ts",
-    "log:smoke": "tsx scripts/log-parse-smoke.ts"
+    "log:smoke": "tsx scripts/log-parse-smoke.ts",
+    "verify:dashboard": "node scripts/verify-dashboard-data.mjs"
   },
   "engines": {
     "node": ">=22.5.0"
