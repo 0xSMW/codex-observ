@@ -1,6 +1,8 @@
 import { computeCost, getPricingForModel } from '@/lib/pricing'
+import { toNumber } from '@/lib/utils'
 import { applyDateRange, DateRange, getPreviousRange } from './date-range'
-import { getDatabase, tableExists } from './db'
+import { getDatabase } from './db'
+import { safeAll, safeGet } from './query-helpers'
 
 type KpiValue = {
   value: number
@@ -38,19 +40,6 @@ export interface OverviewResponse {
   }
 }
 
-function toNumber(value: unknown, fallback = 0): number {
-  if (value === null || value === undefined) {
-    return fallback
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-  const parsed = Number(value)
-  if (Number.isFinite(parsed)) {
-    return parsed
-  }
-  return fallback
-}
 
 function kpi(value: number, previous: number | null): KpiValue {
   if (previous === null) {
@@ -62,25 +51,17 @@ function kpi(value: number, previous: number | null): KpiValue {
 }
 
 function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) {
-  if (!tableExists(db, 'model_call')) {
-    return {
-      inputTokens: 0,
-      cachedInputTokens: 0,
-      outputTokens: 0,
-      reasoningTokens: 0,
-      totalTokens: 0,
-      modelCalls: 0,
-      avgDurationMs: 0,
-    }
-  }
-  const where: string[] = []
-  const params: unknown[] = []
-  applyDateRange('ts', range, where, params)
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  return safeGet(
+    'model_call',
+    (db) => {
+      const where: string[] = []
+      const params: unknown[] = []
+      applyDateRange('ts', range, where, params)
+      const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const row = db
-    .prepare(
-      `SELECT
+      const row = db
+        .prepare(
+          `SELECT
         COALESCE(SUM(input_tokens), 0) AS input_tokens,
         COALESCE(SUM(cached_input_tokens), 0) AS cached_input_tokens,
         COALESCE(SUM(output_tokens), 0) AS output_tokens,
@@ -90,59 +71,76 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
         COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
       FROM model_call
       ${whereSql}`
-    )
-    .get(...params) as Record<string, unknown> | undefined
+        )
+        .get(...params) as Record<string, unknown> | undefined
 
-  return {
-    inputTokens: toNumber(row?.input_tokens),
-    cachedInputTokens: toNumber(row?.cached_input_tokens),
-    outputTokens: toNumber(row?.output_tokens),
-    reasoningTokens: toNumber(row?.reasoning_tokens),
-    totalTokens: toNumber(row?.total_tokens),
-    modelCalls: toNumber(row?.model_calls),
-    avgDurationMs: toNumber(row?.avg_duration_ms),
-  }
+      return {
+        inputTokens: toNumber(row?.input_tokens),
+        cachedInputTokens: toNumber(row?.cached_input_tokens),
+        outputTokens: toNumber(row?.output_tokens),
+        reasoningTokens: toNumber(row?.reasoning_tokens),
+        totalTokens: toNumber(row?.total_tokens),
+        modelCalls: toNumber(row?.model_calls),
+        avgDurationMs: toNumber(row?.avg_duration_ms),
+      }
+    },
+    {
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      totalTokens: 0,
+      modelCalls: 0,
+      avgDurationMs: 0,
+    }
+  )
 }
 
 function querySessionsCount(db: ReturnType<typeof getDatabase>, range: DateRange): number {
-  if (!tableExists(db, 'session')) {
-    return 0
-  }
-  const where: string[] = []
-  const params: unknown[] = []
-  applyDateRange('ts', range, where, params)
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
-  const row = db.prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`).get(...params) as
-    | Record<string, unknown>
-    | undefined
-  return toNumber(row?.sessions)
+  return safeGet(
+    'session',
+    (db) => {
+      const where: string[] = []
+      const params: unknown[] = []
+      applyDateRange('ts', range, where, params)
+      const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+      const row = db.prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`).get(...params) as
+        | Record<string, unknown>
+        | undefined
+      return toNumber(row?.sessions)
+    },
+    0
+  )
 }
 
 function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) {
-  if (!tableExists(db, 'tool_call')) {
-    return { toolCalls: 0, okCalls: 0, avgDurationMs: 0 }
-  }
-  const where: string[] = []
-  const params: unknown[] = []
-  applyDateRange('start_ts', range, where, params)
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  return safeGet(
+    'tool_call',
+    (db) => {
+      const where: string[] = []
+      const params: unknown[] = []
+      applyDateRange('start_ts', range, where, params)
+      const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const row = db
-    .prepare(
-      `SELECT
+      const row = db
+        .prepare(
+          `SELECT
         COUNT(*) AS tool_calls,
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_calls,
         COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
-    )
-    .get(...params) as Record<string, unknown> | undefined
+        )
+        .get(...params) as Record<string, unknown> | undefined
 
-  return {
-    toolCalls: toNumber(row?.tool_calls),
-    okCalls: toNumber(row?.ok_calls),
-    avgDurationMs: toNumber(row?.avg_duration_ms),
-  }
+      return {
+        toolCalls: toNumber(row?.tool_calls),
+        okCalls: toNumber(row?.ok_calls),
+        avgDurationMs: toNumber(row?.avg_duration_ms),
+      }
+    },
+    { toolCalls: 0, okCalls: 0, avgDurationMs: 0 }
+  )
 }
 
 function queryDailySeries(
@@ -150,17 +148,15 @@ function queryDailySeries(
   range: DateRange,
   pricingData: Record<string, unknown> | null
 ): OverviewSeriesPoint[] {
-  if (!tableExists(db, 'model_call')) {
-    return []
-  }
-  const where: string[] = []
-  const params: unknown[] = []
-  applyDateRange('ts', range, where, params)
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+  const rows = safeAll('model_call', (db) => {
+    const where: string[] = []
+    const params: unknown[] = []
+    applyDateRange('ts', range, where, params)
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const rows = db
-    .prepare(
-      `SELECT
+    return db
+      .prepare(
+        `SELECT
         strftime('%Y-%m-%d', ts / 1000, 'unixepoch', 'localtime') AS date,
         model,
         COALESCE(input_tokens, 0) AS input_tokens,
@@ -170,8 +166,9 @@ function queryDailySeries(
       FROM model_call
       ${whereSql}
       ORDER BY date ASC`
-    )
-    .all(...params) as Record<string, unknown>[]
+      )
+      .all(...params) as Record<string, unknown>[]
+  })
 
   const byDate = new Map<
     string,
