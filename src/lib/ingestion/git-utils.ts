@@ -93,10 +93,7 @@ export function findGitRoot(startPath: string, fileSystem: FileSystem = defaultF
  * If .git is a directory, returns root/.git/config.
  * If .git is a file (worktree gitfile), reads gitdir and commondir to get the shared config path.
  */
-function getConfigPath(
-  root: string,
-  fileSystem: FileSystem
-): string | null {
+function getConfigPath(root: string, fileSystem: FileSystem): string | null {
   const gitPath = path.join(root, '.git')
   if (!fileSystem.existsSync(gitPath)) return null
 
@@ -124,6 +121,31 @@ function getConfigPath(
     const commonDir = path.resolve(gitDir, commondirContent)
     const configPath = path.join(commonDir, 'config')
     return fileSystem.existsSync(configPath) ? configPath : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Extracts the repository name from a git remote URL.
+ * Examples:
+ *   https://github.com/user/repo -> repo
+ *   https://github.com/user/repo.git -> repo
+ *   git@github.com:user/repo.git -> repo
+ */
+export function repoNameFromRemote(remoteUrl: string | null): string | null {
+  if (!remoteUrl) return null
+
+  try {
+    const normalized = normalizeGitUrl(remoteUrl)
+    if (!normalized) return null
+
+    // Extract the last path segment (repo name)
+    const parts = normalized.split('/')
+    const lastPart = parts[parts.length - 1]
+    if (!lastPart) return null
+
+    return lastPart
   } catch {
     return null
   }
