@@ -4,7 +4,10 @@
  * Use: pnpm exec tsx scripts/run-ingest-and-backfill.ts
  */
 import { ingestIncremental } from '../src/lib/ingestion'
-import { backfillSessionProjects } from '../src/lib/ingestion/backfill-session-projects'
+import {
+  backfillSessionProjects,
+  refreshProjectNames,
+} from '../src/lib/ingestion/backfill-session-projects'
 import { closeDb, getDb } from '../src/lib/db'
 
 async function main(): Promise<void> {
@@ -25,6 +28,9 @@ async function main(): Promise<void> {
   const db = getDb()
   const updated = backfillSessionProjects(db)
   console.log('Backfill: updated', updated, 'sessions with project_id/project_ref_id')
+
+  const refreshed = refreshProjectNames(db)
+  console.log('Refresh project names:', refreshed, 'project/project_ref rows upserted')
 
   closeDb()
   console.log('Done.')
