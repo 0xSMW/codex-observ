@@ -25,7 +25,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
+import {
+  formatCompactNumber,
+  formatDuration,
+  formatDurationSeconds,
+  formatPercent,
+} from '@/lib/constants'
 import { ToolFailureChart, ToolUsageChart } from '@/components/tools/tool-charts'
 
 export default function ToolsPage() {
@@ -89,7 +94,7 @@ export default function ToolsPage() {
                 ? ('down' as const)
                 : ('neutral' as const),
           icon: <Timer className="h-4 w-4" />,
-          formatValue: formatDuration,
+          formatValue: formatDurationSeconds,
         },
         {
           label: 'Total calls',
