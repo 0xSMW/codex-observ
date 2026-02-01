@@ -89,9 +89,37 @@ export type SessionsResponse = {
     search: string | null
     models: string[]
     providers: string[]
+    project: string | null
+    branch: string | null
+    worktree: string | null
+    originator: string | null
+    cliVersion: string | null
   }
   pagination: PaginationResponse
   sessions: SessionListItem[]
+}
+
+export type ProjectListItem = {
+  id: string
+  name: string
+  rootPath: string | null
+  gitRemote: string | null
+  firstSeenTs: number | null
+  lastSeenTs: number | null
+  sessionCount: number
+  modelCallCount: number
+  toolCallCount: number
+  totalTokens: number
+  cacheHitRate: number
+  estimatedCost: number
+  toolSuccessRate: number
+}
+
+export type ProjectsResponse = {
+  range?: RangeResponse
+  filters: { search: string | null }
+  pagination: PaginationResponse
+  projects: ProjectListItem[]
 }
 
 export type SessionDetailResponse = {
