@@ -54,7 +54,7 @@ export function normalizeGitUrl(url: string | null): string | null {
  */
 export function findGitRoot(startPath: string, fileSystem: FileSystem = defaultFs): string | null {
   if (!startPath) return null
-  
+
   try {
     let current = path.resolve(startPath)
     // Safety check to avoid infinite loops or going above root
@@ -62,7 +62,7 @@ export function findGitRoot(startPath: string, fileSystem: FileSystem = defaultF
 
     while (current && !visited.has(current)) {
       visited.add(current)
-      
+
       const gitDir = path.join(current, '.git')
       // console.log('Checking', gitDir) // Debug
       if (fileSystem.existsSync(gitDir) && fileSystem.statSync(gitDir).isDirectory()) {
@@ -110,7 +110,7 @@ export function detectGitRemote(cwd: string, fileSystem: FileSystem = defaultFs)
         return normalizeGitUrl(config[key].url)
       }
     }
-    
+
     return null
   } catch (err) {
     // console.error('Error reading git config:', err)
