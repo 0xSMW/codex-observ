@@ -84,19 +84,19 @@ export default function OverviewPage() {
         },
         {
           label: 'Avg model latency',
-          value: kpis.avgModelDurationMs.value,
-          change: kpis.avgModelDurationMs.deltaPct ?? 0,
-          trend: getTrend(kpis.avgModelDurationMs.delta),
+          value: Number(kpis.avgModelDurationMs?.value) || 0,
+          change: kpis.avgModelDurationMs?.deltaPct ?? 0,
+          trend: getTrend(kpis.avgModelDurationMs?.delta ?? null),
           icon: <Clock className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `${Math.round(v)}ms` : '—'),
+          formatValue: (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '—'),
         },
         {
           label: 'Avg tool latency',
-          value: kpis.avgToolDurationMs.value,
-          change: kpis.avgToolDurationMs.deltaPct ?? 0,
-          trend: getTrend(kpis.avgToolDurationMs.delta),
+          value: Number(kpis.avgToolDurationMs?.value) || 0,
+          change: kpis.avgToolDurationMs?.deltaPct ?? 0,
+          trend: getTrend(kpis.avgToolDurationMs?.delta ?? null),
           icon: <Clock className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `${Math.round(v)}ms` : '—'),
+          formatValue: (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '—'),
         },
       ]
     : []
