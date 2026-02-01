@@ -56,13 +56,18 @@ export function Sidebar() {
         ? 'bg-amber-500'
         : 'bg-rose-500'
 
+  const widthClass = collapsed ? 'w-16' : 'w-64'
+
   return (
-    <aside
-      className={cn(
-        'bg-sidebar text-sidebar-foreground border-r border-sidebar-border sticky top-0 z-10 hidden h-screen shrink-0 flex-col self-start md:flex',
-        collapsed ? 'w-16' : 'w-64'
-      )}
-    >
+    <>
+      {/* Spacer reserves layout space so main content isn't covered */}
+      <div className={cn('hidden shrink-0 md:block', widthClass)} aria-hidden />
+      <aside
+        className={cn(
+          'bg-sidebar text-sidebar-foreground border-r border-sidebar-border fixed left-0 top-0 z-20 hidden h-screen flex-col md:flex',
+          widthClass
+        )}
+      >
       <div className="flex items-center justify-between px-4 py-4">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
@@ -139,5 +144,6 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }
