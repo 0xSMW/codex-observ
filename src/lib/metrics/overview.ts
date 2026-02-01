@@ -40,7 +40,6 @@ export interface OverviewResponse {
   }
 }
 
-
 function kpi(value: number, previous: number | null): KpiValue {
   if (previous === null) {
     return { value, previous, delta: null, deltaPct: null }
@@ -104,9 +103,9 @@ function querySessionsCount(db: ReturnType<typeof getDatabase>, range: DateRange
       const params: unknown[] = []
       applyDateRange('ts', range, where, params)
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
-      const row = db.prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`).get(...params) as
-        | Record<string, unknown>
-        | undefined
+      const row = db
+        .prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`)
+        .get(...params) as Record<string, unknown> | undefined
       return toNumber(row?.sessions)
     },
     0
@@ -127,7 +126,7 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
           `SELECT
         COUNT(*) AS tool_calls,
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_calls,
-        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
+        AVG(COALESCE(duration_ms, end_ts - start_ts)) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
         )
