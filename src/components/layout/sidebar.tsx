@@ -11,6 +11,7 @@ import {
   Gauge,
   MessageSquare,
   PanelLeft,
+  RefreshCw,
   TerminalSquare,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -21,6 +22,7 @@ import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants'
 import { useLiveUpdates } from '@/hooks/use-live-updates'
 import { useSyncStatus } from '@/hooks/use-sync-status'
+import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 const iconMap = {
   Gauge,
@@ -38,7 +40,7 @@ export function Sidebar() {
     return window.localStorage.getItem('sidebar-collapsed') === 'true'
   })
   const { status } = useLiveUpdates()
-  const { lastSyncedAt } = useSyncStatus()
+  const { lastSyncedAt, triggerSync, isSyncing } = useSyncStatus()
 
   const handleToggle = () => {
     const next = !collapsed
@@ -124,8 +126,18 @@ export function Sidebar() {
           })}
         </nav>
 
-        <div className="border-t border-sidebar-border p-4">
-          <div className={cn('space-y-3', collapsed && 'hidden')}>
+        <div className="border-t border-sidebar-border">
+          {!collapsed && (
+            <div className="border-b border-sidebar-border px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
+                Theme
+              </p>
+              <div className="mt-2">
+                <ThemeToggle />
+              </div>
+            </div>
+          )}
+          <div className={cn('space-y-3 p-4', collapsed && 'hidden')}>
             <div>
               <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
                 Connection
@@ -139,9 +151,29 @@ export function Sidebar() {
               <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
                 Last synced
               </p>
-              <p className="mt-1 text-sm">
-                {lastSyncedDate ? formatDistanceToNow(lastSyncedDate, { addSuffix: true }) : '—'}
-              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <p className="text-sm">
+                  {lastSyncedDate ? formatDistanceToNow(lastSyncedDate, { addSuffix: true }) : '—'}
+                </p>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-sidebar-foreground/60 hover:text-sidebar-foreground"
+                      onClick={() => void triggerSync()}
+                      disabled={isSyncing}
+                      aria-label="Sync data"
+                    >
+                      <RefreshCw
+                        className={cn('h-3.5 w-3.5', isSyncing && 'animate-spin')}
+                        aria-hidden
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">{isSyncing ? 'Syncing…' : 'Sync data'}</TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           </div>
         </div>
