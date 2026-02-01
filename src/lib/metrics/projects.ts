@@ -48,10 +48,16 @@ export interface ProjectsListResult {
 export function getProjectsList(options: ProjectsListOptions): ProjectsListResult {
   const db = getDatabase()
   if (!tableExists(db, 'project') || !tableExists(db, 'session')) {
-    return { 
-      total: 0, 
-      projects: [], 
-      aggregates: { totalProjects: 0, totalSessions: 0, totalTokens: 0, totalCost: 0, avgSuccessRate: 0 } 
+    return {
+      total: 0,
+      projects: [],
+      aggregates: {
+        totalProjects: 0,
+        totalSessions: 0,
+        totalTokens: 0,
+        totalCost: 0,
+        avgSuccessRate: 0,
+      },
     }
   }
 
@@ -73,20 +79,25 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
   let avgSuccessRate = 0
 
   // Total Projects & Sessions
-  const totalsRow = db.prepare(`
+  const totalsRow = db
+    .prepare(
+      `
     SELECT 
       COUNT(DISTINCT s.project_id) as projects,
       COUNT(*) as sessions
     FROM session s
     WHERE project_id IS NOT NULL ${rangeWhere}
-  `).get(...rangeParams) as { projects: number; sessions: number }
-  
+  `
+    )
+    .get(...rangeParams) as { projects: number; sessions: number }
+
   totalProjects = toNumber(totalsRow?.projects)
   totalSessions = toNumber(totalsRow?.sessions)
 
   // Total Tokens & Cost
   if (hasModelCall) {
-     const modelUsageRows = db.prepare(
+    const modelUsageRows = db
+      .prepare(
         `SELECT 
            mc.model,
            COALESCE(SUM(mc.total_tokens), 0) AS t, 
@@ -98,43 +109,48 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
          JOIN session s ON s.id = mc.session_id 
          WHERE s.project_id IS NOT NULL ${options.range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''}
          GROUP BY mc.model`
-      ).all(
-        ...(options.range.startMs != null 
-          ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER] 
+      )
+      .all(
+        ...(options.range.startMs != null
+          ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
           : [])
       ) as Array<{ model: string; t: number; i: number; c: number; o: number; r: number }>
 
-      for (const mRow of modelUsageRows) {
-        totalTokens += toNumber(mRow.t)
-        const pricing = getPricingForModel(pricingData, mRow.model)
-        if (pricing) {
-          const cost = computeCost(
-            pricing, 
-            toNumber(mRow.i), 
-            toNumber(mRow.c), 
-            toNumber(mRow.o), 
-            toNumber(mRow.r)
-          )
-          totalCost += (cost ?? 0)
-        }
+    for (const mRow of modelUsageRows) {
+      totalTokens += toNumber(mRow.t)
+      const pricing = getPricingForModel(pricingData, mRow.model)
+      if (pricing) {
+        const cost = computeCost(
+          pricing,
+          toNumber(mRow.i),
+          toNumber(mRow.c),
+          toNumber(mRow.o),
+          toNumber(mRow.r)
+        )
+        totalCost += cost ?? 0
       }
+    }
   }
 
   // Tool Stats for Avg Success Rate
   if (hasToolCall) {
-    const toolStats = db.prepare(`
+    const toolStats = db
+      .prepare(
+        `
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN tc.status = 'ok' OR tc.status = 'unknown' OR tc.exit_code = 0 THEN 1 ELSE 0 END) as ok
       FROM tool_call tc
       JOIN session s ON s.id = tc.session_id
       WHERE s.project_id IS NOT NULL ${options.range.startMs != null ? ' AND tc.start_ts >= ? AND tc.start_ts <= ?' : ''}
-    `).get(
-        ...(options.range.startMs != null 
-          ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER] 
+    `
+      )
+      .get(
+        ...(options.range.startMs != null
+          ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
           : [])
-    ) as { total: number; ok: number }
-    
+      ) as { total: number; ok: number }
+
     if (toolStats && toNumber(toolStats.total) > 0) {
       avgSuccessRate = toNumber(toolStats.ok) / toNumber(toolStats.total)
     }
@@ -145,7 +161,7 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
     totalSessions,
     totalTokens,
     totalCost,
-    avgSuccessRate
+    avgSuccessRate,
   }
 
   // 2. Fetch Paginated List
@@ -169,12 +185,12 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
   const sortBy = options.sortBy ?? 'lastSeen'
   const sortOrder = options.sortOrder ?? 'desc'
   const direction = sortOrder === 'asc' ? 'ASC' : 'DESC'
-  
+
   let orderByClause = 'ORDER BY last_seen_ts DESC NULLS LAST'
-  
+
   // For complex sorts like sessionCount, we need to join or subquery in the ordering
   // But we are selecting from `project` table filtered by `projectIds` list.
-  
+
   if (sortBy === 'name') {
     orderByClause = `ORDER BY name ${direction}`
   } else if (sortBy === 'firstSeen') {
@@ -182,15 +198,15 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
   } else if (sortBy === 'lastSeen') {
     orderByClause = `ORDER BY last_seen_ts ${direction} NULLS LAST`
   } else if (sortBy === 'sessionCount') {
-     // This is tricky efficiently, but fine for small datasets
-     orderByClause = `ORDER BY (SELECT COUNT(*) FROM session s WHERE s.project_id = project.id) ${direction}`
+    // This is tricky efficiently, but fine for small datasets
+    orderByClause = `ORDER BY (SELECT COUNT(*) FROM session s WHERE s.project_id = project.id) ${direction}`
   } else if (sortBy === 'totalTokens' && hasModelCall) {
-     orderByClause = `ORDER BY (SELECT COALESCE(SUM(mc.total_tokens),0) FROM model_call mc JOIN session s ON s.id = mc.session_id WHERE s.project_id = project.id) ${direction}`
+    orderByClause = `ORDER BY (SELECT COALESCE(SUM(mc.total_tokens),0) FROM model_call mc JOIN session s ON s.id = mc.session_id WHERE s.project_id = project.id) ${direction}`
   }
 
   const placeholders = projectIds.map(() => '?').join(',')
   const query = `SELECT id FROM project WHERE id IN (${placeholders}) ${orderByClause} LIMIT ? OFFSET ?`
-  
+
   const paginatedIds = db
     .prepare(query)
     .all(...projectIds, options.pagination.limit, options.pagination.offset) as Array<{
@@ -201,7 +217,7 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
 
   for (const row of paginatedIds) {
     const pid = row.id
-    
+
     // 1. Session Count
     const sessionCountRow = db
       .prepare(
@@ -219,11 +235,12 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
     let totalInputTokens = 0
     let totalCachedTokens = 0
     let estimatedCost = 0
-    
+
     if (hasModelCall) {
       // Aggregate by model to compute cost correctly
-      const modelUsageRows = db.prepare(
-        `SELECT 
+      const modelUsageRows = db
+        .prepare(
+          `SELECT 
            mc.model,
            COALESCE(SUM(mc.total_tokens), 0) AS t, 
            COALESCE(SUM(mc.input_tokens), 0) AS i, 
@@ -234,28 +251,29 @@ export function getProjectsList(options: ProjectsListOptions): ProjectsListResul
          JOIN session s ON s.id = mc.session_id 
          WHERE s.project_id = ? ${options.range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''}
          GROUP BY mc.model`
-      ).all(
-        pid,
-        ...(options.range.startMs != null 
-          ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER] 
-          : [])
-      ) as Array<{ model: string; t: number; i: number; c: number; o: number; r: number }>
+        )
+        .all(
+          pid,
+          ...(options.range.startMs != null
+            ? [options.range.startMs, options.range.endMs ?? Number.MAX_SAFE_INTEGER]
+            : [])
+        ) as Array<{ model: string; t: number; i: number; c: number; o: number; r: number }>
 
       for (const mRow of modelUsageRows) {
         totalTokens += toNumber(mRow.t)
         totalInputTokens += toNumber(mRow.i)
         totalCachedTokens += toNumber(mRow.c)
-        
+
         const pricing = getPricingForModel(pricingData, mRow.model)
         if (pricing) {
           const cost = computeCost(
-            pricing, 
-            toNumber(mRow.i), 
-            toNumber(mRow.c), 
-            toNumber(mRow.o), 
+            pricing,
+            toNumber(mRow.i),
+            toNumber(mRow.c),
+            toNumber(mRow.o),
             toNumber(mRow.r)
           )
-          estimatedCost += (cost ?? 0)
+          estimatedCost += cost ?? 0
         }
       }
     }
@@ -375,8 +393,9 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
 
   // 3. Model Stats & Breakdown
   if (hasModelCall) {
-    const modelUsageRows = db.prepare(
-      `SELECT 
+    const modelUsageRows = db
+      .prepare(
+        `SELECT 
          mc.model,
          COALESCE(SUM(mc.total_tokens), 0) AS t, 
          COALESCE(SUM(mc.input_tokens), 0) AS i, 
@@ -387,7 +406,15 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
        JOIN session s ON s.id = mc.session_id 
        WHERE s.project_id = ? ${range.startMs != null ? ' AND mc.ts >= ? AND mc.ts <= ?' : ''}
        GROUP BY mc.model`
-    ).all(...mainParams) as Array<{ model: string; t: number; i: number; c: number; o: number; r: number }>
+      )
+      .all(...mainParams) as Array<{
+      model: string
+      t: number
+      i: number
+      c: number
+      o: number
+      r: number
+    }>
 
     for (const mRow of modelUsageRows) {
       const t = toNumber(mRow.t)
@@ -395,7 +422,7 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
       const c = toNumber(mRow.c)
       const o = toNumber(mRow.o)
       const r = toNumber(mRow.r)
-      
+
       totalTokens += t
       totalInputTokens += i
       totalCachedTokens += c
@@ -410,28 +437,34 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
       tokenBreakdown.push({
         model: mRow.model || 'Unknown',
         tokens: t,
-        cost: modelCost
+        cost: modelCost,
       })
     }
   }
 
   // 3. Tool Stats
-  const toolStats = hasToolCall ? (db.prepare(
-      `SELECT 
+  const toolStats = hasToolCall
+    ? (db
+        .prepare(
+          `SELECT 
         COUNT(*) AS total, 
         SUM(CASE WHEN tc.status = 'ok' OR tc.status = 'unknown' OR tc.exit_code = 0 THEN 1 ELSE 0 END) AS ok 
        FROM tool_call tc 
        JOIN session s ON s.id = tc.session_id 
        WHERE s.project_id = ? ${range.startMs != null ? ' AND tc.start_ts >= ? AND tc.start_ts <= ?' : ''}`
-    ).get(...mainParams) as { total: number; ok: number }) : { total: 0, ok: 0 }
-    
+        )
+        .get(...mainParams) as { total: number; ok: number })
+    : { total: 0, ok: 0 }
+
   const toolCallCount = toNumber(toolStats?.total)
   const toolOkCount = toNumber(toolStats?.ok)
 
   // 4. History (Sessions per day)
   // For MVP, just sessions per day. Tokens per day requires more complex query or model_call join.
   // SQLite `strftime`
-  const historyRows = db.prepare(`
+  const historyRows = db
+    .prepare(
+      `
     SELECT 
       strftime('%Y-%m-%d', s.ts / 1000, 'unixepoch') as day,
       COUNT(*) as count
@@ -439,12 +472,14 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
     WHERE project_id = ? ${rangeWhere}
     GROUP BY day
     ORDER BY day ASC
-  `).all(projectId, ...rangeParams) as Array<{ day: string; count: number }>
+  `
+    )
+    .all(projectId, ...rangeParams) as Array<{ day: string; count: number }>
 
-  const history: DailyProjectStat[] = historyRows.map(r => ({
+  const history: DailyProjectStat[] = historyRows.map((r) => ({
     date: r.day,
     prop: 'sessions',
-    value: toNumber(r.count)
+    value: toNumber(r.count),
   }))
 
   const project: ProjectListItem = {
