@@ -39,7 +39,9 @@ export function ThemeToggle() {
           System
           {theme === 'system' && <Check className="ml-auto h-4 w-4" />}
         </DropdownMenuItem>
-        <div className="px-2 pb-2 pt-1 text-xs text-muted-foreground">Active: {resolvedTheme}</div>
+        <div className="px-2 pb-2 pt-1 text-xs hidden text-muted-foreground">
+          Active: {resolvedTheme}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   )
