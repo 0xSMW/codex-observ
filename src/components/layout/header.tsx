@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
 import { DateRangePicker } from '@/components/shared/date-range-picker'
-import { ThemeToggle } from '@/components/layout/theme-toggle'
 import { NAV_ITEMS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -71,7 +70,6 @@ export function Header() {
                 <DateRangePicker />
               </div>
             )}
-          <ThemeToggle />
         </div>
       </div>
     </header>
