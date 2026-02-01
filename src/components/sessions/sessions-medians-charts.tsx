@@ -3,7 +3,12 @@
 import { Clock, Cpu, DollarSign, MessageSquare } from 'lucide-react'
 
 import { KPIStatCard } from '@/components/shared/kpi-card'
-import { formatCompactNumber, formatCost, formatDuration } from '@/lib/constants'
+import {
+  formatCompactNumber,
+  formatCost,
+  formatDuration,
+  formatDurationSeconds,
+} from '@/lib/constants'
 import type { SessionMediansSummary } from '@/types/api'
 
 export function SessionsMediansTiles({ summary }: { summary: SessionMediansSummary }) {
@@ -26,7 +31,7 @@ export function SessionsMediansTiles({ summary }: { summary: SessionMediansSumma
       />
       <KPIStatCard
         title="Median Duration"
-        value={formatDuration(summary.medianDurationMs)}
+        value={formatDurationSeconds(summary.medianDurationMs)}
         icon={<Clock className="h-4 w-4" />}
       />
     </div>
