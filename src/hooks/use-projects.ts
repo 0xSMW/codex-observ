@@ -30,7 +30,15 @@ export function useProjects(query: ProjectsQuery) {
     if (query.sortBy) search.set('sortBy', query.sortBy)
     if (query.sortOrder) search.set('sortOrder', query.sortOrder)
     return search.toString()
-  }, [query])
+  }, [
+    query.page,
+    query.pageSize,
+    query.search,
+    query.range?.from,
+    query.range?.to,
+    query.sortBy,
+    query.sortOrder,
+  ])
 
   const url = `/api/projects?${params}`
 
