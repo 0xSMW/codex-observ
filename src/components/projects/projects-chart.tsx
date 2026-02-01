@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { ProjectListItem } from '@/lib/metrics/projects'
+import { formatGitRemoteDisplay } from '@/lib/format-git-remote'
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
 
 interface ProjectsChartProps {
@@ -47,7 +48,7 @@ export function ProjectsChart({ projects }: ProjectsChartProps) {
       .slice(0, 10)
 
     return sorted.map((p) => ({
-      name: p.name,
+      name: formatGitRemoteDisplay(p.gitRemote) ?? p.name,
       tokens: p.totalTokens,
       sessions: p.sessionCount,
       cost: p.estimatedCost,
@@ -95,7 +96,7 @@ export function ProjectsChart({ projects }: ProjectsChartProps) {
         </Select>
       </CardHeader>
       <CardContent className="pt-4">
-        <ChartContainer config={chartConfig} className="min-h-[300px] w-full">
+        <ChartContainer config={chartConfig} className="min-h-[300px] max-h-[400px] w-full">
           <BarChart
             data={data}
             layout="vertical"
@@ -113,14 +114,11 @@ export function ProjectsChart({ projects }: ProjectsChartProps) {
             <YAxis
               type="category"
               dataKey="name"
-              width={120}
+              width={140}
               stroke="#888888"
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(value) =>
-                value.length > 15 ? `${value.substring(0, 15)}...` : value
-              }
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Bar
