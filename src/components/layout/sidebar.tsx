@@ -1,15 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 import {
+  Activity,
   Calendar,
   Cpu,
   Gauge,
   MessageSquare,
   PanelLeft,
-  RefreshCw,
   TerminalSquare,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -19,6 +19,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants'
 import { useLiveUpdates } from '@/hooks/use-live-updates'
+import { useSyncStatus } from '@/hooks/use-sync-status'
 
 const iconMap = {
   Gauge,
@@ -30,19 +31,12 @@ const iconMap = {
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
     return window.localStorage.getItem('sidebar-collapsed') === 'true'
   })
-  const [now, setNow] = useState(() => new Date())
-  const { status, lastUpdate } = useLiveUpdates()
-  const [manualUpdate, setManualUpdate] = useState<Date | null>(null)
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(new Date()), 60000)
-    return () => window.clearInterval(interval)
-  }, [])
+  const { status } = useLiveUpdates()
+  const { lastSyncedAt } = useSyncStatus()
 
   const handleToggle = () => {
     const next = !collapsed
@@ -50,12 +44,7 @@ export function Sidebar() {
     window.localStorage.setItem('sidebar-collapsed', String(next))
   }
 
-  const handleRefresh = () => {
-    setManualUpdate(new Date())
-    router.refresh()
-  }
-
-  const displayUpdate = manualUpdate ?? lastUpdate
+  const lastSyncedDate = lastSyncedAt ? new Date(lastSyncedAt) : null
   const connectionLabel =
     status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting' : 'Disconnected'
   const statusColor =
@@ -74,12 +63,12 @@ export function Sidebar() {
     >
       <div className="flex items-center justify-between px-4 py-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-semibold">
-            CO
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+            <Activity className="h-4 w-4" aria-hidden />
           </div>
           {!collapsed && (
             <div>
-              <p className="text-sm font-semibold">Codex Observ</p>
+              <p className="text-sm font-semibold">Codex Observe</p>
               <p className="text-xs text-sidebar-foreground/70">Local insights</p>
             </div>
           )}
@@ -139,24 +128,12 @@ export function Sidebar() {
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-sidebar-foreground/60">
-              Last updated
+              Last synced
             </p>
             <p className="mt-1 text-sm">
-              {displayUpdate ? formatDistanceToNow(displayUpdate, { addSuffix: true }) : '—'}
+              {lastSyncedDate ? formatDistanceToNow(lastSyncedDate, { addSuffix: true }) : '—'}
             </p>
           </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn('mt-3 w-full', collapsed && 'px-0')}
-          onClick={handleRefresh}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          {!collapsed && 'Refresh'}
-        </Button>
-        <div className="mt-2 text-xs text-sidebar-foreground/50">
-          Updated {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
     </aside>
