@@ -12,7 +12,13 @@ export interface ActivitySummary {
   totalMessages: number
   totalCalls: number
   totalTokens: number
+  totalSessions: number
   activeDays: number
+  prevTotalMessages?: number
+  prevTotalCalls?: number
+  prevTotalTokens?: number
+  prevTotalSessions?: number
+  prevActiveDays?: number
 }
 
 export interface ActivityResult {
@@ -156,8 +162,19 @@ export function getActivity(range: DateRange): ActivityResult {
       }
       return acc
     },
-    { totalMessages: 0, totalCalls: 0, totalTokens: 0, activeDays: 0 }
+    { totalMessages: 0, totalCalls: 0, totalTokens: 0, totalSessions: 0, activeDays: 0 }
   )
+
+  if (tableExists(db, 'session')) {
+    const where: string[] = []
+    const params: unknown[] = []
+    applyDateRange('ts', range, where, params)
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+    const row = db
+      .prepare(`SELECT COUNT(*) AS total FROM session ${whereSql}`)
+      .get(...params) as Record<string, unknown>
+    summary.totalSessions = toNumber(row?.total)
+  }
 
   return { activity, summary }
 }
