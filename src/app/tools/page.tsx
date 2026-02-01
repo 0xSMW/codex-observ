@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { TerminalSquare, Timer, CheckCircle2, AlertTriangle, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  TerminalSquare,
+  Timer,
+  CheckCircle2,
+  AlertTriangle,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useToolCalls, ToolCallsQuery } from '@/hooks/use-tool-calls'
@@ -31,19 +39,19 @@ export default function ToolsPage() {
 
   // Debounce search
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setSearch(e.target.value)
-      const timer = setTimeout(() => {
-          setDebouncedSearch(e.target.value)
-          setPage(1) // Reset page on search
-      }, 500)
-      return () => clearTimeout(timer)
+    setSearch(e.target.value)
+    const timer = setTimeout(() => {
+      setDebouncedSearch(e.target.value)
+      setPage(1) // Reset page on search
+    }, 500)
+    return () => clearTimeout(timer)
   }
 
   const query: ToolCallsQuery = {
-      range,
-      page,
-      pageSize,
-      search: debouncedSearch || undefined
+    range,
+    page,
+    pageSize,
+    search: debouncedSearch || undefined,
   }
 
   const { data, error, isLoading, refresh } = useToolCalls(query)
@@ -137,49 +145,49 @@ export default function ToolsPage() {
       {data && <KpiGrid items={kpiItems} />}
 
       {breakdown && (
-         <div className="grid gap-6 md:grid-cols-2">
-           <ToolUsageChart data={breakdown.tools} />
-           <ToolFailureChart data={breakdown.failures} />
-         </div>
+        <div className="grid gap-6 md:grid-cols-2">
+          <ToolUsageChart data={breakdown.tools} />
+          <ToolFailureChart data={breakdown.failures} />
+        </div>
       )}
 
       <div className="rounded-lg border bg-card">
-          <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div className="relative w-64 max-w-sm">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search commands..."
-                  className="pl-9 h-9"
-                  value={search}
-                  onChange={handleSearchChange}
-                />
-              </div>
-               <div className="flex items-center gap-2">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page <= 1 || isLoading}
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div className="text-sm text-muted-foreground min-w-[4rem] text-center">
-                    Page {page} of {totalPages || 1}
-                </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages || isLoading}
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <div className="relative w-64 max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search commands..."
+              className="pl-9 h-9"
+              value={search}
+              onChange={handleSearchChange}
+            />
           </div>
-        
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || isLoading}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-sm text-muted-foreground min-w-[4rem] text-center">
+              Page {page} of {totalPages || 1}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || isLoading}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
         {isLoading && !data && <TableSkeleton rows={5} />}
-        
+
         {data && (
           <Table className="table-fixed">
             <TableHeader>
@@ -229,13 +237,14 @@ export default function ToolsPage() {
             </TableBody>
           </Table>
         )}
-         <div className="border-t px-4 py-3 text-xs text-muted-foreground">
-            {data && (
-                <>
-                Showing {data.toolCalls.length} of {data.pagination.total} calls · Success rate: {formatPercent(summary?.successRate ?? 0)}
-                </>
-            )}
-          </div>
+        <div className="border-t px-4 py-3 text-xs text-muted-foreground">
+          {data && (
+            <>
+              Showing {data.toolCalls.length} of {data.pagination.total} calls · Success rate:{' '}
+              {formatPercent(summary?.successRate ?? 0)}
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
