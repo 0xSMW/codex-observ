@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 
 export function Header() {
   const pathname = usePathname()
+  if (pathname === '/') return null
   const current = NAV_ITEMS.find((item) => item.href === pathname)
 
   return (
@@ -63,7 +64,7 @@ export function Header() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {pathname !== '/activity' &&
+          {pathname !== '/' &&
             pathname !== '/models' &&
             !pathname.startsWith('/sessions/') && (
               <div className="hidden md:block">
