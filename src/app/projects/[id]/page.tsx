@@ -14,6 +14,7 @@ import {
 import { useDateRange } from '@/hooks/use-date-range'
 import { useApiData } from '@/hooks/use-api'
 import { formatCompactNumber, formatPercent, formatCurrency } from '@/lib/constants'
+import { formatGitRemoteDisplay } from '@/lib/format-git-remote'
 import { KpiSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
 import { FolderGit2, GitBranch, GitCommit, ExternalLink } from 'lucide-react'
@@ -100,7 +101,9 @@ export default function ProjectDetailPage() {
           Projects
         </Link>
         <span>/</span>
-        <span className="text-foreground">{project.name}</span>
+        <span className="text-foreground">
+          {formatGitRemoteDisplay(project.gitRemote) ?? project.name}
+        </span>
       </div>
 
       <Card>
@@ -109,10 +112,10 @@ export default function ProjectDetailPage() {
             <div className="space-y-1">
               <CardTitle className="text-xl flex items-center gap-2">
                 <FolderGit2 className="h-5 w-5 text-muted-foreground" />
-                {project.name}
+                {formatGitRemoteDisplay(project.gitRemote) ?? project.name}
               </CardTitle>
               {project.rootPath && (
-                <p className="text-sm text-muted-foreground font-normal font-mono">
+                <p className="text-sm text-muted-foreground font-normal font-mono break-all">
                   {project.rootPath}
                 </p>
               )}
