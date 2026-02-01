@@ -115,11 +115,20 @@ export type ProjectListItem = {
   toolSuccessRate: number
 }
 
+export type ProjectsAggregates = {
+  totalProjects: number
+  totalSessions: number
+  totalTokens: number
+  totalCost: number
+  avgSuccessRate: number
+}
+
 export type ProjectsResponse = {
   range?: RangeResponse
   filters: { search: string | null }
   pagination: PaginationResponse
   projects: ProjectListItem[]
+  aggregates?: ProjectsAggregates
 }
 
 export type SessionDetailResponse = {
@@ -196,10 +205,18 @@ export type ModelSummary = {
   estimatedCost: number | null
 }
 
+export type ModelsAggregates = {
+  totalCalls: number
+  totalTokens: number
+  totalCost: number
+  avgDurationMs: number
+}
+
 export type ModelsResponse = {
   range?: RangeResponse
   pagination: PaginationResponse
   models: ModelSummary[]
+  aggregates?: ModelsAggregates
 }
 
 export type ProviderSummary = {
@@ -247,6 +264,19 @@ export type ToolCallListItem = {
   correlationKey: string | null
 }
 
+export type ToolBreakdown = {
+  tool: string
+  count: number
+  successRate: number
+  avgDurationMs: number
+}
+
+export type FailureBreakdown = {
+  error: string
+  count: number
+  tool: string | null
+}
+
 export type ToolCallsResponse = {
   range?: RangeResponse
   filters: {
@@ -257,6 +287,10 @@ export type ToolCallsResponse = {
   }
   pagination: PaginationResponse
   summary: ToolCallSummary
+  breakdown?: {
+    tools: ToolBreakdown[]
+    failures: FailureBreakdown[]
+  }
   toolCalls: ToolCallListItem[]
 }
 
