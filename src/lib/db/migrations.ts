@@ -50,12 +50,12 @@ function migrationFrom1To2(db: DatabaseSync): void {
   `)
   try {
     db.exec('ALTER TABLE session ADD COLUMN project_id TEXT NULL')
-  } catch {
+  } catch (_) {
     // column may already exist
   }
   try {
     db.exec('ALTER TABLE session ADD COLUMN project_ref_id TEXT NULL')
-  } catch {
+  } catch (_) {
     // column may already exist
   }
 }
