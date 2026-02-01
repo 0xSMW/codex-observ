@@ -1,5 +1,7 @@
+import { toNumber } from '@/lib/utils'
 import { applyDateRange, DateRange, getPreviousRange } from './date-range'
 import { getDatabase, tableExists } from './db'
+import { safeGet } from './query-helpers'
 import { Pagination } from './pagination'
 
 export interface ToolCallsListOptions {
@@ -48,19 +50,6 @@ export interface ToolCallsListResult {
   summary: ToolCallSummary
 }
 
-function toNumber(value: unknown, fallback = 0): number {
-  if (value === null || value === undefined) {
-    return fallback
-  }
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-  const parsed = Number(value)
-  if (Number.isFinite(parsed)) {
-    return parsed
-  }
-  return fallback
-}
 
 function buildWhere(options: ToolCallsListOptions, range: DateRange) {
   const where: string[] = []
@@ -90,50 +79,56 @@ function buildWhere(options: ToolCallsListOptions, range: DateRange) {
   return { where, params }
 }
 
-function querySummary(db: ReturnType<typeof getDatabase>, options: ToolCallsListOptions, range: DateRange) {
-  if (!tableExists(db, 'tool_call')) {
-    return null
-  }
+function querySummary(
+  db: ReturnType<typeof getDatabase>,
+  options: ToolCallsListOptions,
+  range: DateRange
+) {
+  return safeGet(
+    'tool_call',
+    (db) => {
+      const { where, params } = buildWhere(options, range)
+      const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const { where, params } = buildWhere(options, range)
-  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
-
-  const row = db
-    .prepare(
-      `SELECT
+      const row = db
+        .prepare(
+          `SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_count,
-        SUM(CASE WHEN (status = 'failed' AND exit_code != 0) OR (exit_code IS NOT NULL AND exit_code != 0) THEN 1 ELSE 0 END) AS failed_count,
+        SUM(CASE WHEN status = 'failed' OR (exit_code IS NOT NULL AND exit_code != 0) THEN 1 ELSE 0 END) AS failed_count,
         SUM(CASE WHEN status = 'unknown' THEN 1 ELSE 0 END) AS unknown_count,
         COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
-    )
-    .get(...params) as Record<string, unknown> | undefined
+        )
+        .get(...params) as Record<string, unknown> | undefined
 
-  const total = toNumber(row?.total)
-  const ok = toNumber(row?.ok_count)
-  
-  return {
-    total,
-    ok,
-    failed: toNumber(row?.failed_count),
-    unknown: toNumber(row?.unknown_count),
-    avgDurationMs: toNumber(row?.avg_duration_ms),
-    successRate: total > 0 ? ok / total : 0,
-  }
+      const total = toNumber(row?.total)
+      const ok = toNumber(row?.ok_count)
+
+      return {
+        total,
+        ok,
+        failed: toNumber(row?.failed_count),
+        unknown: toNumber(row?.unknown_count),
+        avgDurationMs: toNumber(row?.avg_duration_ms),
+        successRate: total > 0 ? ok / total : 0,
+      }
+    },
+    null
+  )
 }
 
 export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListResult {
   const db = getDatabase()
-  
+
   const currentSummary = querySummary(db, options, options.range) ?? {
     total: 0,
     ok: 0,
     failed: 0,
     unknown: 0,
     avgDurationMs: 0,
-    successRate: 0
+    successRate: 0,
   }
 
   const prevRange = getPreviousRange(options.range)
@@ -142,7 +137,7 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
   // Fetch list items
   const { where, params } = buildWhere(options, options.range)
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
-  
+
   let total = 0
   let toolCalls: ToolCallListItem[] = []
 
