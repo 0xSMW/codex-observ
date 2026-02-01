@@ -62,6 +62,7 @@ export async function GET(request: Request) {
       },
       pagination: paginationToResponse(pagination, result.total),
       summary: result.summary,
+      breakdown: result.breakdown,
       toolCalls: result.toolCalls,
     })
   } catch (error) {
