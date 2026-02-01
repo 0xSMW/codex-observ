@@ -7,6 +7,7 @@ import {
   Activity,
   Calendar,
   Cpu,
+  FolderGit2,
   Gauge,
   MessageSquare,
   PanelLeft,
@@ -23,6 +24,7 @@ import { useSyncStatus } from '@/hooks/use-sync-status'
 
 const iconMap = {
   Gauge,
+  FolderGit2,
   MessageSquare,
   TerminalSquare,
   Cpu,
