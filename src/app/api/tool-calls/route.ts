@@ -1,5 +1,10 @@
 import { resolveRange, rangeToResponse } from '@/lib/metrics/date-range'
-import { parseListParam, parseSearchParam } from '@/lib/metrics/filters'
+import {
+  parseListParam,
+  parseNumberParam,
+  parseBoolParam,
+  parseSearchParam,
+} from '@/lib/metrics/filters'
 import { jsonError, jsonOk } from '@/lib/metrics/http'
 import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination'
 import { getToolCallsList } from '@/lib/metrics/tool-calls'
@@ -22,6 +27,11 @@ export async function GET(request: Request) {
     const tools = parseListParam(url.searchParams, ['tools', 'tool'])
     const sessionId = parseSearchParam(url.searchParams, ['session', 'sessionId'])
     const search = parseSearchParam(url.searchParams, ['q', 'search'])
+    const exitCode = parseNumberParam(url.searchParams, ['exitCode', 'exit_code'])
+    const hasError = parseBoolParam(url.searchParams, ['hasError', 'has_error'])
+    const minDurationMs = parseNumberParam(url.searchParams, ['minDurationMs', 'min_duration_ms'])
+    const maxDurationMs = parseNumberParam(url.searchParams, ['maxDurationMs', 'max_duration_ms'])
+    const project = parseSearchParam(url.searchParams, ['project', 'projectId'])
 
     const result = getToolCallsList({
       range,
@@ -30,11 +40,26 @@ export async function GET(request: Request) {
       tools: tools.length ? tools : undefined,
       sessionId,
       search,
+      exitCode: exitCode ?? undefined,
+      hasError: hasError ?? undefined,
+      minDurationMs: minDurationMs ?? undefined,
+      maxDurationMs: maxDurationMs ?? undefined,
+      project: project ?? undefined,
     })
 
     return jsonOk({
       range: rangeToResponse(range),
-      filters: { status, tools, sessionId, search },
+      filters: {
+        status,
+        tools,
+        sessionId,
+        search,
+        exitCode,
+        hasError,
+        minDurationMs,
+        maxDurationMs,
+        project,
+      },
       pagination: paginationToResponse(pagination, result.total),
       summary: result.summary,
       toolCalls: result.toolCalls,
