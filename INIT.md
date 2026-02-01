@@ -280,24 +280,24 @@ Indexes:
 
 **Phase 1 setup**: Complete — Runtime, Recharts, schema, api types, metrics types in place.
 
-**Agent A (Ingestion)**: ~95% — DB (node:sqlite), schema, file discovery, JSONL parsers, log ingestion, dedup, fixtures, smoke scripts. *Open*: file rotation handling.
+**Agent A (Ingestion)**: ~95% — DB (node:sqlite), schema, file discovery, JSONL parsers, log ingestion, dedup, fixtures, smoke scripts. _Open_: file rotation handling.
 
 **Agent B (Logs)**: Complete — ANSI strip, FunctionCall/ToolCall/BackgroundEvent parsers, tool correlation, identity resolution, terminal detection, fixtures, log-parse-smoke.
 
-**Agent C (API)**: ~95% — All routes (overview, sessions, models, providers, tool-calls, activity, ingest) implemented. *Open*: api-smoke.ts contract tests.
+**Agent C (API)**: ~95% — All routes (overview, sessions, models, providers, tool-calls, activity, ingest) implemented. _Open_: api-smoke.ts contract tests.
 
-**Agent D (UI)**: ~90% — shadcn, custom theme (light/dark/system), app shell, sidebar, header, overview KPIs+charts, sessions table, session detail, activity heatmap, data hooks. *Open*: @tanstack/react-table/virtual, api-smoke.
+**Agent D (UI)**: ~90% — shadcn, custom theme (light/dark/system), app shell, sidebar, header, overview KPIs+charts, sessions table, session detail, activity heatmap, data hooks. _Open_: @tanstack/react-table/virtual, api-smoke.
 
-**Agent E (Live updates)**: ~95% — fs.watch-based watcher, SSE `/api/events`, useLiveUpdates, incremental ingest on file change, profiler, cache. *Open*: `/api/health` endpoint.
+**Agent E (Live updates)**: ~95% — fs.watch-based watcher, SSE `/api/events`, useLiveUpdates, incremental ingest on file change, profiler, cache. _Open_: `/api/health` endpoint.
 
 **Implementation variations from plan**:
 
-| Plan                         | Implemented                               |
-|------------------------------|-------------------------------------------|
-| better-sqlite3               | `node:sqlite` (built-in)                  |
-| chokidar for file watching   | native `fs.watch`                         |
-| next-themes                  | custom ThemeProvider (localStorage)       |
-| SWR for data fetching        | custom `useApiData` hook                  |
+| Plan                       | Implemented                         |
+| -------------------------- | ----------------------------------- |
+| better-sqlite3             | `node:sqlite` (built-in)            |
+| chokidar for file watching | native `fs.watch`                   |
+| next-themes                | custom ThemeProvider (localStorage) |
+| SWR for data fetching      | custom `useApiData` hook            |
 
 ---
 
@@ -378,7 +378,7 @@ src/lib/ingestion/
 
 #### Database Setup
 
-- [x] Install `better-sqlite3` and `@types/better-sqlite3` *(uses `node:sqlite` built-in instead)*
+- [x] Install `better-sqlite3` and `@types/better-sqlite3` _(uses `node:sqlite` built-in instead)_
 - [x] Create database singleton in `src/lib/db/index.ts`
   - Lazy initialization on first access
   - Store DB file at `~/.codex-observ/data.db`
@@ -791,7 +791,7 @@ src/lib/metrics/
 
 #### Contract Tests
 
-- [ ] Add `scripts/api-smoke.ts` to call each endpoint and validate JSON shape *(not present)*
+- [ ] Add `scripts/api-smoke.ts` to call each endpoint and validate JSON shape _(not present)_
 - [ ] Add `src/types/api.ts` runtime guards (lightweight manual checks)
 - [ ] Ensure error responses use a consistent shape: `{ error, code }`
 
@@ -916,8 +916,8 @@ src/
 
 #### Implementation Tasks
 
-- [x] Install and configure `next-themes` *(custom ThemeProvider with localStorage used instead)*
-- [x] Create `src/components/providers/theme-provider.tsx` *(in `use-theme.tsx` as ThemeProvider)*:
+- [x] Install and configure `next-themes` _(custom ThemeProvider with localStorage used instead)_
+- [x] Create `src/components/providers/theme-provider.tsx` _(in `use-theme.tsx` as ThemeProvider)_:
 
   ```typescript
   'use client'
@@ -1370,7 +1370,7 @@ src/
 
 ### Data Fetching Hooks
 
-- [x] Use SWR for all data fetching with consistent pattern *(custom `useApiData` + `useApi` used instead)*:
+- [x] Use SWR for all data fetching with consistent pattern _(custom `useApiData` + `useApi` used instead)_:
 
   ```tsx
   export function useOverview(dateRange: DateRange) {
@@ -1451,7 +1451,7 @@ src/lib/performance/
 
 #### File Watcher Implementation
 
-- [x] Install `chokidar` for cross-platform file watching *(uses native `fs.watch` instead)*
+- [x] Install `chokidar` for cross-platform file watching _(uses native `fs.watch` instead)_
 - [x] Implement `SessionWatcher` class:
   - Watch `~/.codex/sessions/` recursively for new/changed `.jsonl` files
   - Watch `~/.codex/log/codex-tui.log` for new entries
@@ -1607,7 +1607,7 @@ src/lib/performance/
   - API endpoint handlers (each route)
   - Complex database queries
 - [ ] Log slow operations (> 100ms) with details
-- [ ] Create `/api/health` endpoint *(not present; sync-status exists instead)*:
+- [ ] Create `/api/health` endpoint _(not present; sync-status exists instead)_:
   ```typescript
   {
     "status": "healthy",
