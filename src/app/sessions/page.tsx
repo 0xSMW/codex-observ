@@ -77,6 +77,8 @@ export default function SessionsPage() {
 
   return (
     <div className="space-y-6">
+      {mediansData?.summary ? <SessionsMediansTiles summary={mediansData.summary} /> : null}
+
       <SessionFilters
         value={filters}
         models={models}
@@ -87,8 +89,6 @@ export default function SessionsPage() {
           setPage(1)
         }}
       />
-
-      {mediansData?.summary ? <SessionsMediansTiles summary={mediansData.summary} /> : null}
 
       {isLoading && !data && <TableSkeleton rows={8} />}
 
