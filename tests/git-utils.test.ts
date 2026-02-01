@@ -27,7 +27,9 @@ function createMockFs(files: Record<string, string | boolean>): FileSystem {
     },
     statSync: (path: string) => ({
       isDirectory: () => {
-        // If it looks like a directory or ends with .git in our mock
+        // .git as file (worktree gitfile): entry exists and value is string
+        if (path.endsWith('.git') && files[path] !== undefined && typeof files[path] === 'string')
+          return false
         return path.endsWith('.git') || path.endsWith('/')
       },
     }),
@@ -136,6 +138,38 @@ describe('git-utils', () => {
         // no config file
       })
       expect(detectGitRemote('/app', mockFs)).toBeNull()
+    })
+
+    it('returns remote from worktree when .git is a file (gitfile)', () => {
+      // Worktree: .git is a file with "gitdir: <path>"; config is read via commondir.
+      // Use absolute gitdir and commondir "." so config lives at gitDir/config (path mock: resolve(a,".")=>a).
+      const mockConfig = `
+[remote "origin"]
+	url = git@github.com:org/worktree-repo.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+`
+      const mockFs = createMockFs({
+        '/wt/.git': 'gitdir: /main/.git/worktrees/wt',
+        '/main/.git/worktrees/wt/commondir': '.',
+        '/main/.git/worktrees/wt/config': mockConfig,
+      })
+      expect(detectGitRemote('/wt', mockFs)).toBe('https://github.com/org/worktree-repo')
+    })
+  })
+
+  describe('findGitRoot (worktree)', () => {
+    it('treats .git as repo root when .git is a file (gitfile)', () => {
+      const mockFs = createMockFs({
+        '/worktree/.git': 'gitdir: /main/.git/worktrees/wt',
+      })
+      expect(findGitRoot('/worktree', mockFs)).toBe('/worktree')
+    })
+
+    it('walks up and finds worktree root when .git is a file in subdir', () => {
+      const mockFs = createMockFs({
+        '/worktree/.git': 'gitdir: /main/.git/worktrees/wt',
+      })
+      expect(findGitRoot('/worktree/src/lib', mockFs)).toBe('/worktree')
     })
   })
 })
