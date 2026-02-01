@@ -12,7 +12,7 @@ import { StatusBadge } from '@/components/shared/status-badge'
 import { formatCompactNumber, formatDuration } from '@/lib/constants'
 import type { SessionListItem } from '@/types/api'
 
-function getProject(cwd: string | null) {
+function getWorkspace(cwd: string | null) {
   if (!cwd) return '—'
   const parts = cwd.split('/')
   return parts[parts.length - 1] || cwd
@@ -32,7 +32,7 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
         <TableHeader>
           <TableRow>
             <TableHead>Session</TableHead>
-            <TableHead>Project</TableHead>
+            <TableHead>Workspace</TableHead>
             <TableHead>Model provider</TableHead>
             <TableHead className="text-right">Messages</TableHead>
             <TableHead className="text-right">Tokens</TableHead>
@@ -49,7 +49,7 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
                 </Link>
               </TableCell>
               <TableCell>
-                <div className="text-sm font-medium">{getProject(session.cwd)}</div>
+                <div className="text-sm font-medium">{getWorkspace(session.cwd)}</div>
                 <div className="text-xs text-muted-foreground">{session.cwd ?? '—'}</div>
               </TableCell>
               <TableCell>
