@@ -1,4 +1,4 @@
-import { getDateRange, rangeToResponse } from '@/lib/metrics/date-range'
+import { resolveRange, rangeToResponse } from '@/lib/metrics/date-range'
 import { parseListParam, parseSearchParam } from '@/lib/metrics/filters'
 import { jsonError, jsonOk } from '@/lib/metrics/http'
 import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination'
@@ -7,7 +7,7 @@ import { getToolCallsList } from '@/lib/metrics/tool-calls'
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url)
-    const { range, errors: rangeErrors } = getDateRange(url.searchParams)
+    const { range, errors: rangeErrors } = resolveRange(url.searchParams)
     const { pagination, errors: pageErrors } = parsePagination(url.searchParams, {
       defaultLimit: 50,
       maxLimit: 200,
