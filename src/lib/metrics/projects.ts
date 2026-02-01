@@ -503,17 +503,32 @@ export function getProjectDetail(projectId: string, range: DateRange): ProjectDe
   // 1. Branches (all refs across all project_ids in group)
   const refRows = db
     .prepare(
-      `SELECT pr.branch, pr."commit",
-        (SELECT COUNT(*) FROM session s WHERE s.project_ref_id = pr.id ${rangeWhere}) AS session_count
+      `SELECT pr.branch,
+        COALESCE(pr."commit", MAX(s.git_commit)) AS commit_sha,
+        COUNT(s.id) AS session_count
        FROM project_ref pr
+       LEFT JOIN session s
+         ON (
+           s.project_ref_id = pr.id
+           OR (
+             s.project_ref_id IS NULL
+             AND s.project_id = pr.project_id
+             AND (pr.branch IS NULL OR s.git_branch = pr.branch)
+           )
+         )
+         ${range.startMs != null ? ' AND s.ts >= ? AND s.ts <= ?' : ''}
        WHERE pr.project_id IN (${placeholders})
+       GROUP BY pr.id, pr.branch, pr."commit"
        ORDER BY pr.last_seen_ts DESC NULLS LAST`
     )
-    .all(...projectIds) as Record<string, unknown>[]
+    .all(
+      ...(range.startMs != null ? [range.startMs, range.endMs ?? Number.MAX_SAFE_INTEGER] : []),
+      ...projectIds
+    ) as Record<string, unknown>[]
 
   const branches = refRows.map((r) => ({
     branch: (r.branch as string | null) ?? null,
-    commit: (r.commit as string | null) ?? null,
+    commit: (r.commit_sha as string | null) ?? null,
     sessionCount: toNumber(r.session_count),
   }))
 
