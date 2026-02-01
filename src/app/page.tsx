@@ -75,7 +75,7 @@ export default function OverviewPage() {
           isPercent: true,
         },
         {
-          label: 'Est. cost',
+          label: 'Usage cost',
           value: kpis.totalCost.value,
           change: kpis.totalCost.deltaPct ?? 0,
           trend: getTrend(kpis.totalCost.delta),
@@ -147,10 +147,7 @@ export default function OverviewPage() {
               >
                 <CacheChart data={series} />
               </ChartCard>
-              <ChartCard
-                title="Estimated cost"
-                description="Cost for period based on model pricing"
-              >
+              <ChartCard title="Daily cost" description="Cost for period based on model pricing">
                 <CostChart data={series} />
               </ChartCard>
               <ChartCard title="Model calls" description="Total model invocations per day">
