@@ -1,117 +1,93 @@
 'use client'
 
-import { Clock, Cpu, DollarSign, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
+import { useMemo } from 'react'
+import { CalendarDays, Coins, MessageSquare, Users, Zap } from 'lucide-react'
 
-import { useDateRange } from '@/hooks/use-date-range'
+import { useActivity } from '@/hooks/use-activity'
 import { useOverview } from '@/hooks/use-overview'
+import { ActivityHeatmap } from '@/components/activity/heatmap'
 import { ChartCard } from '@/components/dashboard/chart-card'
-import { KpiGrid } from '@/components/dashboard/kpi-grid'
-import { TokensChart } from '@/components/dashboard/tokens-chart'
-import { CacheChart } from '@/components/dashboard/cache-chart'
-import { CallsChart } from '@/components/dashboard/calls-chart'
 import { CostChart } from '@/components/dashboard/cost-chart'
-import { KpiSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
-import { EmptyState } from '@/components/shared/empty-state'
+import { KpiCard } from '@/components/dashboard/kpi-card'
+import { KpiSkeleton } from '@/components/shared/loading-skeleton'
+import { formatCompactNumber } from '@/lib/constants'
 
-function getTrend(delta: number | null): 'neutral' | 'up' | 'down' {
-  if (delta === null) return 'neutral'
-  if (delta > 0) return 'up'
-  if (delta < 0) return 'down'
-  return 'neutral'
-}
+export default function ActivityPage() {
+  const year = new Date().getFullYear()
+  const { data, error, isLoading, refresh } = useActivity(year)
 
-export default function OverviewPage() {
-  const { range } = useDateRange()
-  const { data, error, isLoading, isFallback, refresh } = useOverview(range)
+  const ytdRange = useMemo(
+    () => ({
+      from: new Date(year, 0, 1),
+      to: new Date(year, 11, 31),
+    }),
+    [year]
+  )
+  const { data: overviewData } = useOverview(ytdRange)
+  const costSeries = overviewData?.series?.daily ?? []
 
-  const series = data?.series?.daily ?? []
-  const kpis = data?.kpis
+  const summary = data?.summary
 
-  const kpiItems = kpis
+  // Decimal change (0.5 = 50%) for formatPercent; same convention as overview KPIs
+  const calcChange = (current: number, previous?: number | null): number => {
+    if (previous == null || previous === 0) return 0
+    return (current - previous) / previous
+  }
+
+  const getTrend = (change: number): 'up' | 'down' | 'neutral' => {
+    if (change > 0) return 'up'
+    if (change < 0) return 'down'
+    return 'neutral'
+  }
+
+  const delta = (current: number, previous?: number | null) => {
+    const change = calcChange(current, previous)
+    return { change, trend: getTrend(change) }
+  }
+
+  // Order: tokens, days, sessions, messages, calls (change as decimal for formatPercent, same as overview)
+  const kpiItems = summary
     ? [
         {
-          label: 'Total tokens',
-          value: kpis.totalTokens.value,
-          change: kpis.totalTokens.deltaPct ?? 0,
-          trend: getTrend(kpis.totalTokens.delta),
-          icon: <Layers className="h-4 w-4" />,
+          label: 'Tokens',
+          value: summary.totalTokens,
+          ...delta(summary.totalTokens, summary.prevTotalTokens),
+          icon: <Coins className="h-4 w-4" />,
+          formatValue: formatCompactNumber,
         },
         {
-          label: 'Cache hit rate',
-          value: kpis.cacheHitRate.value,
-          change: kpis.cacheHitRate.deltaPct ?? 0,
-          trend: getTrend(kpis.cacheHitRate.delta),
-          icon: <Zap className="h-4 w-4" />,
-          isPercent: true,
+          label: 'Active days',
+          value: summary.activeDays,
+          ...delta(summary.activeDays, summary.prevActiveDays),
+          icon: <CalendarDays className="h-4 w-4" />,
         },
         {
           label: 'Sessions',
-          value: kpis.sessions.value,
-          change: kpis.sessions.deltaPct ?? 0,
-          trend: getTrend(kpis.sessions.delta),
-          icon: <Gauge className="h-4 w-4" />,
+          value: summary.totalSessions,
+          ...delta(summary.totalSessions, summary.prevTotalSessions),
+          icon: <Users className="h-4 w-4" />,
         },
         {
-          label: 'Model calls',
-          value: kpis.modelCalls.value,
-          change: kpis.modelCalls.deltaPct ?? 0,
-          trend: getTrend(kpis.modelCalls.delta),
-          icon: <Cpu className="h-4 w-4" />,
+          label: 'Messages',
+          value: summary.totalMessages,
+          ...delta(summary.totalMessages, summary.prevTotalMessages),
+          icon: <MessageSquare className="h-4 w-4" />,
         },
         {
-          label: 'Tool calls',
-          value: kpis.toolCalls.value,
-          change: kpis.toolCalls.deltaPct ?? 0,
-          trend: getTrend(kpis.toolCalls.delta),
-          icon: <TerminalSquare className="h-4 w-4" />,
-        },
-        {
-          label: 'Tool success rate',
-          value: kpis.successRate.value,
-          change: kpis.successRate.deltaPct ?? 0,
-          trend: getTrend(kpis.successRate.delta),
-          icon: <TerminalSquare className="h-4 w-4" />,
-          isPercent: true,
-        },
-        {
-          label: 'Usage cost',
-          value: kpis.totalCost.value,
-          change: kpis.totalCost.deltaPct ?? 0,
-          trend: getTrend(kpis.totalCost.delta),
-          icon: <DollarSign className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `$${v.toFixed(2)}` : '—'),
-        },
-        {
-          label: 'Avg model latency',
-          value: Number(kpis.avgModelDurationMs?.value) || 0,
-          change: kpis.avgModelDurationMs?.deltaPct ?? 0,
-          trend: getTrend(kpis.avgModelDurationMs?.delta ?? null),
-          icon: <Clock className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '—'),
-        },
-        {
-          label: 'Avg tool latency',
-          value: Number(kpis.avgToolDurationMs?.value) || 0,
-          change: kpis.avgToolDurationMs?.deltaPct ?? 0,
-          trend: getTrend(kpis.avgToolDurationMs?.delta ?? null),
-          icon: <Clock className="h-4 w-4" />,
-          formatValue: (v: number) => (Number.isFinite(v) ? `${Math.round(v)}ms` : '—'),
+          label: 'Calls',
+          value: summary.totalCalls,
+          ...delta(summary.totalCalls, summary.prevTotalCalls),
+          icon: <Zap className="h-4 w-4" />,
         },
       ]
     : []
 
   return (
     <div className="space-y-6">
-      {isFallback && (
-        <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-          Showing sample data while the local Codex data ingests.
-        </div>
-      )}
-
       {isLoading && !data && (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
             <KpiSkeleton key={index} />
           ))}
         </div>
@@ -119,49 +95,36 @@ export default function OverviewPage() {
 
       {error && !data && (
         <ErrorState
-          description="We couldn’t load overview metrics. Try refreshing."
+          description="We couldn't load activity data. Try refreshing."
           onRetry={refresh}
         />
       )}
 
       {data && (
-        <>
-          <KpiGrid items={kpiItems} />
-
-          {series.length === 0 ? (
-            <EmptyState
-              title="No activity yet"
-              description="Once Codex sessions are ingested, charts will appear here."
-            />
-          ) : (
-            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
-              <ChartCard
-                title="Token throughput"
-                description="Input, cached input, and output tokens"
-              >
-                <TokensChart data={series} />
-              </ChartCard>
-              <ChartCard
-                title="Cache utilization"
-                description="Percent of input tokens served from cache"
-              >
-                <CacheChart data={series} />
-              </ChartCard>
-              <ChartCard title="Daily cost" description="Cost for period based on model pricing">
-                <CostChart data={series} />
-              </ChartCard>
-              <ChartCard title="Model calls" description="Total model invocations per day">
-                <CallsChart data={series} />
-              </ChartCard>
-            </div>
-          )}
-        </>
+        <div className="w-full overflow-hidden rounded-lg border bg-card p-6">
+          <h3 className="text-base font-semibold">Activity heatmap</h3>
+          <p className="mt-1 text-sm text-muted-foreground">Token throughput by day for {year}</p>
+          <div className="mt-6 w-full min-w-0 overflow-x-auto">
+            <ActivityHeatmap year={year} data={data} />
+          </div>
+        </div>
       )}
 
-      {isLoading && data && (
-        <div className="rounded-lg border border-dashed bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
-          Refreshing metrics…
+      {data && (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {kpiItems.map((item) => (
+            <KpiCard key={item.label} {...item} />
+          ))}
         </div>
+      )}
+
+      {data && (
+        <ChartCard
+          title="YTD cost"
+          description={`Estimated cost for ${year} based on model pricing`}
+        >
+          <CostChart data={costSeries} className="min-h-[260px] max-h-[400px] w-full" />
+        </ChartCard>
       )}
     </div>
   )
