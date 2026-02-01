@@ -13,17 +13,20 @@ export type SessionFiltersValue = {
   search: string
   model: string
   provider: string
+  project: string
 }
 
 export function SessionFilters({
   value,
   models,
   providers,
+  projects,
   onChange,
 }: {
   value: SessionFiltersValue
   models: string[]
   providers: string[]
+  projects: { id: string; name: string }[]
   onChange: (next: SessionFiltersValue) => void
 }) {
   return (
@@ -35,6 +38,19 @@ export function SessionFilters({
           onChange={(event) => onChange({ ...value, search: event.target.value })}
         />
       </div>
+      <Select value={value.project} onValueChange={(project) => onChange({ ...value, project })}>
+        <SelectTrigger className="w-full lg:w-48">
+          <SelectValue placeholder="All projects" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All projects</SelectItem>
+          {projects.map((p) => (
+            <SelectItem key={p.id} value={p.id}>
+              {p.name || p.id}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Select value={value.model} onValueChange={(model) => onChange({ ...value, model })}>
         <SelectTrigger className="w-full lg:w-48">
           <SelectValue placeholder="All models" />
