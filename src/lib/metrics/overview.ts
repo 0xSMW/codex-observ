@@ -58,18 +58,29 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
       applyDateRange('ts', range, where, params)
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
+      // Infer duration from next model call in same session when duration_ms is null (matches session-detail logic)
       const row = db
         .prepare(
-          `SELECT
+          `WITH with_next AS (
+        SELECT input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, total_tokens,
+          duration_ms, ts,
+          LEAD(ts) OVER (PARTITION BY session_id ORDER BY ts) AS next_ts
+        FROM model_call
+        ${whereSql}
+      )
+      SELECT
         COALESCE(SUM(input_tokens), 0) AS input_tokens,
         COALESCE(SUM(cached_input_tokens), 0) AS cached_input_tokens,
         COALESCE(SUM(output_tokens), 0) AS output_tokens,
         COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
         COALESCE(SUM(total_tokens), 0) AS total_tokens,
         COUNT(*) AS model_calls,
-        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
-      FROM model_call
-      ${whereSql}`
+        COALESCE(AVG(CASE
+          WHEN duration_ms IS NOT NULL AND duration_ms > 0 THEN duration_ms
+          WHEN next_ts IS NOT NULL AND next_ts > ts THEN next_ts - ts
+          ELSE NULL
+        END), 0) AS avg_duration_ms
+      FROM with_next`
         )
         .get(...params) as Record<string, unknown> | undefined
 
@@ -121,12 +132,17 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
       applyDateRange('start_ts', range, where, params)
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
+      // Use end_ts - start_ts when duration_ms is null (matches session-detail logic)
       const row = db
         .prepare(
           `SELECT
         COUNT(*) AS tool_calls,
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_calls,
-        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
+        COALESCE(AVG(CASE
+          WHEN duration_ms IS NOT NULL AND duration_ms > 0 THEN duration_ms
+          WHEN end_ts IS NOT NULL AND start_ts IS NOT NULL AND end_ts >= start_ts THEN (end_ts - start_ts)
+          ELSE NULL
+        END), 0) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
         )
