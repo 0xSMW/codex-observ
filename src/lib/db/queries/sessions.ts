@@ -21,6 +21,7 @@ type Statements = {
   insert: Stmt
   getById: Stmt
   deleteById: Stmt
+  updateProjectIds: Stmt
 }
 
 const statementCache = new WeakMap<Db, Statements>()
@@ -50,7 +51,11 @@ function getStatements(db: Db): Statements {
 
   const deleteById = db.prepare('DELETE FROM session WHERE id = ?')
 
-  const statements: Statements = { insert, getById, deleteById }
+  const updateProjectIds = db.prepare(
+    'UPDATE session SET project_id = ?, project_ref_id = ? WHERE id = ?'
+  )
+
+  const statements: Statements = { insert, getById, deleteById, updateProjectIds }
   statementCache.set(db, statements)
   return statements
 }
@@ -72,5 +77,15 @@ export function getSessionById(db: Db, id: string): SessionRecord | null {
 
 export function deleteSessionById(db: Db, id: string): boolean {
   const result = getStatements(db).deleteById.run(id)
+  return Number(result.changes ?? 0) > 0
+}
+
+export function updateSessionProjectIds(
+  db: Db,
+  sessionId: string,
+  projectId: string,
+  projectRefId: string
+): boolean {
+  const result = getStatements(db).updateProjectIds.run(projectId, projectRefId, sessionId)
   return Number(result.changes ?? 0) > 0
 }
