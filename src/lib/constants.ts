@@ -32,11 +32,18 @@ export function formatNumber(value: number) {
 }
 
 export function formatCompactNumber(value: number) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '0'
   return compactFormatter.format(value)
 }
 
 export function formatPercent(value: number, digits = 1) {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '0%'
   return `${(value * 100).toFixed(digits)}%`
+}
+
+export function formatCost(cost: number | null | undefined): string {
+  if (cost === null || cost === undefined || !Number.isFinite(cost)) return '—'
+  return `$${cost.toFixed(2)}`
 }
 
 export function formatDuration(ms: number) {

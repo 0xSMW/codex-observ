@@ -1,3 +1,4 @@
+import { computeCost, getPricingForModel } from '@/lib/pricing'
 import { applyDateRange, DateRange } from './date-range'
 import { getDatabase, tableExists } from './db'
 import { Pagination } from './pagination'
@@ -5,6 +6,7 @@ import { Pagination } from './pagination'
 export interface ModelsListOptions {
   range: DateRange
   pagination: Pagination
+  pricingData?: Record<string, unknown> | null
 }
 
 export interface ModelSummary {
@@ -19,6 +21,7 @@ export interface ModelSummary {
     cacheHitRate: number
   }
   avgDurationMs: number
+  estimatedCost: number | null
 }
 
 export interface ModelsListResult {
@@ -78,21 +81,32 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
     unknown
   >[]
 
+  const pricingData = (options.pricingData ?? null) as Record<string, unknown> | null
+
   const models = rows.map((row) => {
     const inputTokens = toNumber(row.input_tokens)
     const cachedInputTokens = toNumber(row.cached_input_tokens)
+    const model = String(row.model ?? 'unknown')
+    const outputTokens = toNumber(row.output_tokens)
+    const reasoningTokens = toNumber(row.reasoning_tokens)
+    const pricing = getPricingForModel(
+      pricingData as Parameters<typeof getPricingForModel>[0],
+      model
+    )
+    const cost = computeCost(pricing, inputTokens, cachedInputTokens, outputTokens, reasoningTokens)
     return {
-      model: String(row.model ?? 'unknown'),
+      model,
       callCount: toNumber(row.call_count),
       tokens: {
         input: inputTokens,
         cachedInput: cachedInputTokens,
-        output: toNumber(row.output_tokens),
-        reasoning: toNumber(row.reasoning_tokens),
+        output: outputTokens,
+        reasoning: reasoningTokens,
         total: toNumber(row.total_tokens),
         cacheHitRate: inputTokens > 0 ? cachedInputTokens / inputTokens : 0,
       },
       avgDurationMs: toNumber(row.avg_duration_ms),
+      estimatedCost: cost,
     } satisfies ModelSummary
   })
 

@@ -34,6 +34,7 @@ export type OverviewSeriesPoint = {
   totalTokens: number
   modelCalls: number
   cacheHitRate: number
+  estimatedCost: number
 }
 
 export type OverviewResponse = {
@@ -45,6 +46,7 @@ export type OverviewResponse = {
     modelCalls: OverviewKpiValue
     toolCalls: OverviewKpiValue
     successRate: OverviewKpiValue
+    totalCost: OverviewKpiValue
     avgModelDurationMs: OverviewKpiValue
     avgToolDurationMs: OverviewKpiValue
   }
@@ -163,6 +165,7 @@ export type ModelSummary = {
   callCount: number
   tokens: TokenTotals
   avgDurationMs: number
+  estimatedCost: number | null
 }
 
 export type ModelsResponse = {
@@ -240,7 +243,13 @@ export type ActivitySummary = {
   totalMessages: number
   totalCalls: number
   totalTokens: number
+  totalSessions: number
   activeDays: number
+  prevTotalMessages?: number
+  prevTotalCalls?: number
+  prevTotalTokens?: number
+  prevTotalSessions?: number
+  prevActiveDays?: number
 }
 
 export type ActivityResponse = {

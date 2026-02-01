@@ -7,7 +7,7 @@ import { formatPercent } from '@/lib/constants'
 import type { OverviewSeriesPoint } from '@/types/api'
 
 const chartConfig = {
-  cacheHitRate: { label: 'Cache hit rate', color: 'hsl(var(--chart-3))' },
+  cacheHitRate: { label: 'Cache hit rate', color: 'var(--foreground)' },
 } satisfies Parameters<typeof ChartContainer>[0]['config']
 
 export function CacheChart({ data }: { data: OverviewSeriesPoint[] }) {
@@ -30,7 +30,7 @@ export function CacheChart({ data }: { data: OverviewSeriesPoint[] }) {
           dataKey="cacheHitRate"
           stroke="var(--color-cacheHitRate)"
           strokeWidth={2}
-          dot={false}
+          dot={{ r: 4 }}
         />
       </LineChart>
     </ChartContainer>

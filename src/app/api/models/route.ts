@@ -1,3 +1,4 @@
+import { fetchPricing } from '@/lib/pricing'
 import { getDateRange, rangeToResponse } from '@/lib/metrics/date-range'
 import { jsonError, jsonOk } from '@/lib/metrics/http'
 import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination'
@@ -17,7 +18,12 @@ export async function GET(request: Request) {
       return jsonError(errors.join('; '), 'invalid_query')
     }
 
-    const { models, total } = getModelsList({ range, pagination })
+    const pricingData = await fetchPricing()
+    const { models, total } = getModelsList({
+      range,
+      pagination,
+      pricingData,
+    })
 
     return jsonOk({
       range: rangeToResponse(range),

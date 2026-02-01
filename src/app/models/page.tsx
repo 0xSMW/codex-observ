@@ -16,7 +16,7 @@ import { ErrorState } from '@/components/shared/error-state'
 import { TableSkeleton } from '@/components/shared/loading-skeleton'
 import { useModels } from '@/hooks/use-models'
 import { useProviders } from '@/hooks/use-providers'
-import { formatCompactNumber, formatDuration, formatPercent } from '@/lib/constants'
+import { formatCompactNumber, formatCost, formatDuration, formatPercent } from '@/lib/constants'
 
 export default function ModelsPage() {
   const {
@@ -60,6 +60,7 @@ export default function ModelsPage() {
                     <TableHead>Model</TableHead>
                     <TableHead className="text-right">Calls</TableHead>
                     <TableHead className="text-right">Total tokens</TableHead>
+                    <TableHead className="text-right">Est. cost</TableHead>
                     <TableHead className="text-right">Cache hit</TableHead>
                     <TableHead className="text-right">Avg duration</TableHead>
                   </TableRow>
@@ -75,6 +76,9 @@ export default function ModelsPage() {
                         {formatCompactNumber(model.tokens.total)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
+                        {formatCost(model.estimatedCost)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {formatPercent(model.tokens.cacheHitRate)}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
@@ -85,7 +89,7 @@ export default function ModelsPage() {
                   {modelsData.models.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="py-8 text-center text-sm text-muted-foreground"
                       >
                         No model calls recorded.

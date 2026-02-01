@@ -1,6 +1,6 @@
 'use client'
 
-import { Cpu, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
+import { Cpu, DollarSign, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useOverview } from '@/hooks/use-overview'
@@ -9,6 +9,7 @@ import { KpiGrid } from '@/components/dashboard/kpi-grid'
 import { TokensChart } from '@/components/dashboard/tokens-chart'
 import { CacheChart } from '@/components/dashboard/cache-chart'
 import { CallsChart } from '@/components/dashboard/calls-chart'
+import { CostChart } from '@/components/dashboard/cost-chart'
 import { KpiSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
 import { EmptyState } from '@/components/shared/empty-state'
@@ -73,6 +74,14 @@ export default function OverviewPage() {
           icon: <TerminalSquare className="h-4 w-4" />,
           isPercent: true,
         },
+        {
+          label: 'Est. cost',
+          value: kpis.totalCost.value,
+          change: kpis.totalCost.deltaPct ?? 0,
+          trend: getTrend(kpis.totalCost.delta),
+          icon: <DollarSign className="h-4 w-4" />,
+          formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `$${v.toFixed(2)}` : '—'),
+        },
       ]
     : []
 
@@ -109,7 +118,7 @@ export default function OverviewPage() {
               description="Once Codex sessions are ingested, charts will appear here."
             />
           ) : (
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
               <ChartCard
                 title="Token throughput"
                 description="Input, cached input, and output tokens"
@@ -121,6 +130,12 @@ export default function OverviewPage() {
                 description="Percent of input tokens served from cache"
               >
                 <CacheChart data={series} />
+              </ChartCard>
+              <ChartCard
+                title="Estimated cost"
+                description="Cost for period based on model pricing"
+              >
+                <CostChart data={series} />
               </ChartCard>
               <ChartCard title="Model calls" description="Total model invocations per day">
                 <CallsChart data={series} />

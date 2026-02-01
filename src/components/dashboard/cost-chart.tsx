@@ -3,14 +3,19 @@
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
-import { formatCompactNumber } from '@/lib/constants'
+import { formatCost } from '@/lib/constants'
 import type { OverviewSeriesPoint } from '@/types/api'
 
 const chartConfig = {
-  modelCalls: { label: 'Model calls', color: 'var(--foreground)' },
+  estimatedCost: { label: 'Est. cost', color: 'var(--foreground)' },
 } satisfies Parameters<typeof ChartContainer>[0]['config']
 
-export function CallsChart({ data }: { data: OverviewSeriesPoint[] }) {
+function formatAxisCost(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return '$0'
+  return `$${value.toFixed(2)}`
+}
+
+export function CostChart({ data }: { data: OverviewSeriesPoint[] }) {
   return (
     <ChartContainer config={chartConfig} className="min-h-[260px] w-full">
       <BarChart data={data}>
@@ -19,10 +24,12 @@ export function CallsChart({ data }: { data: OverviewSeriesPoint[] }) {
         <YAxis
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => formatCompactNumber(Number(value))}
+          tickFormatter={(value) => formatAxisCost(Number(value))}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
-        <Bar dataKey="modelCalls" fill="var(--color-modelCalls)" radius={[4, 4, 0, 0]} />
+        <ChartTooltip
+          content={<ChartTooltipContent formatter={(value) => formatCost(Number(value))} />}
+        />
+        <Bar dataKey="estimatedCost" fill="var(--color-estimatedCost)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ChartContainer>
   )

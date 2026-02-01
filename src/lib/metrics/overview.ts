@@ -1,3 +1,4 @@
+import { computeCost, getPricingForModel } from '@/lib/pricing'
 import { applyDateRange, DateRange, getPreviousRange } from './date-range'
 import { getDatabase, tableExists } from './db'
 
@@ -17,6 +18,7 @@ export interface OverviewSeriesPoint {
   totalTokens: number
   modelCalls: number
   cacheHitRate: number
+  estimatedCost: number
 }
 
 export interface OverviewResponse {
@@ -27,6 +29,7 @@ export interface OverviewResponse {
     modelCalls: KpiValue
     toolCalls: KpiValue
     successRate: KpiValue
+    totalCost: KpiValue
     avgModelDurationMs: KpiValue
     avgToolDurationMs: KpiValue
   }
@@ -144,7 +147,8 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
 
 function queryDailySeries(
   db: ReturnType<typeof getDatabase>,
-  range: DateRange
+  range: DateRange,
+  pricingData: Record<string, unknown> | null
 ): OverviewSeriesPoint[] {
   if (!tableExists(db, 'model_call')) {
     return []
@@ -158,46 +162,106 @@ function queryDailySeries(
     .prepare(
       `SELECT
         strftime('%Y-%m-%d', ts / 1000, 'unixepoch', 'localtime') AS date,
-        COALESCE(SUM(input_tokens), 0) AS input_tokens,
-        COALESCE(SUM(cached_input_tokens), 0) AS cached_input_tokens,
-        COALESCE(SUM(output_tokens), 0) AS output_tokens,
-        COALESCE(SUM(reasoning_tokens), 0) AS reasoning_tokens,
-        COALESCE(SUM(total_tokens), 0) AS total_tokens,
-        COUNT(*) AS model_calls
+        model,
+        COALESCE(input_tokens, 0) AS input_tokens,
+        COALESCE(cached_input_tokens, 0) AS cached_input_tokens,
+        COALESCE(output_tokens, 0) AS output_tokens,
+        COALESCE(reasoning_tokens, 0) AS reasoning_tokens
       FROM model_call
       ${whereSql}
-      GROUP BY date
       ORDER BY date ASC`
     )
     .all(...params) as Record<string, unknown>[]
 
-  return rows.map((row) => {
+  const byDate = new Map<
+    string,
+    {
+      inputTokens: number
+      cachedInputTokens: number
+      outputTokens: number
+      reasoningTokens: number
+      totalTokens: number
+      modelCalls: number
+      cost: number
+    }
+  >()
+
+  for (const row of rows) {
+    const date = String(row.date ?? '')
+    let entry = byDate.get(date)
+    if (!entry) {
+      entry = {
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+        reasoningTokens: 0,
+        totalTokens: 0,
+        modelCalls: 0,
+        cost: 0,
+      }
+      byDate.set(date, entry)
+    }
     const inputTokens = toNumber(row.input_tokens)
     const cachedInputTokens = toNumber(row.cached_input_tokens)
-    const cacheHitRate = inputTokens > 0 ? cachedInputTokens / inputTokens : 0
-    return {
-      date: String(row.date ?? ''),
-      inputTokens,
-      cachedInputTokens,
-      outputTokens: toNumber(row.output_tokens),
-      reasoningTokens: toNumber(row.reasoning_tokens),
-      totalTokens: toNumber(row.total_tokens),
-      modelCalls: toNumber(row.model_calls),
-      cacheHitRate,
-    }
-  })
+    const outputTokens = toNumber(row.output_tokens)
+    const reasoningTokens = toNumber(row.reasoning_tokens)
+    entry.inputTokens += inputTokens
+    entry.cachedInputTokens += cachedInputTokens
+    entry.outputTokens += outputTokens
+    entry.reasoningTokens += reasoningTokens
+    entry.totalTokens += inputTokens + outputTokens + reasoningTokens
+    entry.modelCalls += 1
+    const model = row.model != null ? String(row.model) : null
+    const pricing = getPricingForModel(
+      pricingData as Parameters<typeof getPricingForModel>[0],
+      model
+    )
+    const cost = computeCost(pricing, inputTokens, cachedInputTokens, outputTokens, reasoningTokens)
+    if (cost !== null) entry.cost += cost
+  }
+
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, entry]) => {
+      const cacheHitRate = entry.inputTokens > 0 ? entry.cachedInputTokens / entry.inputTokens : 0
+      return {
+        date,
+        inputTokens: entry.inputTokens,
+        cachedInputTokens: entry.cachedInputTokens,
+        outputTokens: entry.outputTokens,
+        reasoningTokens: entry.reasoningTokens,
+        totalTokens: entry.totalTokens,
+        modelCalls: entry.modelCalls,
+        cacheHitRate,
+        estimatedCost: entry.cost,
+      }
+    })
 }
 
-export function getOverview(range: DateRange): OverviewResponse {
+export interface GetOverviewOptions {
+  range: DateRange
+  pricingData?: Record<string, unknown> | null
+}
+
+export function getOverview(options: DateRange | GetOverviewOptions): OverviewResponse {
+  const range = typeof options === 'object' && 'range' in options ? options.range : options
+  const pricingData =
+    typeof options === 'object' && 'pricingData' in options ? (options.pricingData ?? null) : null
+
   const db = getDatabase()
   const currentTokens = queryTokenTotals(db, range)
   const currentSessions = querySessionsCount(db, range)
   const currentTools = queryToolSummary(db, range)
+  const dailySeries = queryDailySeries(db, range, pricingData)
+
+  const totalCost = dailySeries.reduce((sum, p) => sum + p.estimatedCost, 0)
 
   const prevRange = getPreviousRange(range)
   const prevTokens = prevRange ? queryTokenTotals(db, prevRange) : null
   const prevSessions = prevRange ? querySessionsCount(db, prevRange) : null
   const prevTools = prevRange ? queryToolSummary(db, prevRange) : null
+  const prevDaily = prevRange ? queryDailySeries(db, prevRange, pricingData) : []
+  const prevTotalCost = prevDaily.reduce((sum, p) => sum + p.estimatedCost, 0)
 
   const cacheHitRate =
     currentTokens.inputTokens > 0 ? currentTokens.cachedInputTokens / currentTokens.inputTokens : 0
@@ -218,11 +282,12 @@ export function getOverview(range: DateRange): OverviewResponse {
       modelCalls: kpi(currentTokens.modelCalls, prevTokens?.modelCalls ?? null),
       toolCalls: kpi(currentTools.toolCalls, prevTools?.toolCalls ?? null),
       successRate: kpi(successRate, prevSuccessRate),
+      totalCost: kpi(totalCost, prevRange ? prevTotalCost : null),
       avgModelDurationMs: kpi(currentTokens.avgDurationMs, prevTokens?.avgDurationMs ?? null),
       avgToolDurationMs: kpi(currentTools.avgDurationMs, prevTools?.avgDurationMs ?? null),
     },
     series: {
-      daily: queryDailySeries(db, range),
+      daily: dailySeries,
     },
   }
 }

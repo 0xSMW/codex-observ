@@ -13,9 +13,9 @@ import { formatCompactNumber } from '@/lib/constants'
 import type { OverviewSeriesPoint } from '@/types/api'
 
 const chartConfig = {
-  inputTokens: { label: 'Input', color: 'hsl(var(--chart-1))' },
-  cachedInputTokens: { label: 'Cached', color: 'hsl(var(--chart-3))' },
-  outputTokens: { label: 'Output', color: 'hsl(var(--chart-2))' },
+  inputTokens: { label: 'Input', color: 'var(--chart-1)' },
+  cachedInputTokens: { label: 'Cached', color: 'var(--chart-3)' },
+  outputTokens: { label: 'Output', color: 'var(--chart-2)' },
 } satisfies Parameters<typeof ChartContainer>[0]['config']
 
 export function TokensChart({ data }: { data: OverviewSeriesPoint[] }) {
