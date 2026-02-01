@@ -12,6 +12,8 @@ export type ProjectsQuery = {
   pageSize: number
   search?: string
   range?: DateRange
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
 }
 
 export function useProjects(query: ProjectsQuery) {
@@ -25,6 +27,8 @@ export function useProjects(query: ProjectsQuery) {
     if (query.search) search.set('search', query.search)
     if (query.range?.from) search.set('startDate', query.range.from.toISOString())
     if (query.range?.to) search.set('endDate', query.range.to.toISOString())
+    if (query.sortBy) search.set('sortBy', query.sortBy)
+    if (query.sortOrder) search.set('sortOrder', query.sortOrder)
     return search.toString()
   }, [query])
 
