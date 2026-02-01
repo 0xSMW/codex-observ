@@ -268,23 +268,48 @@ Indexes:
 
 ## Security & Privacy
 
-- Local-only data storage, no outbound telemetry.
-- Ignore/strip secrets (auth tokens, raw user prompts) unless user opts in.
-- .gitignore all local DB + cache files.
+- [x] Local-only data storage, no outbound telemetry.
+- [x] Ignore/strip secrets (auth tokens, raw user prompts) unless user opts in.
+- [x] .gitignore all local DB + cache files.
 
 ---
 
 # Multi-Agent Execution Plan
 
+## Progress Summary (validated 2026-02-01)
+
+**Phase 1 setup**: Complete — Runtime, Recharts, schema, api types, metrics types in place.
+
+**Agent A (Ingestion)**: ~95% — DB (node:sqlite), schema, file discovery, JSONL parsers, log ingestion, dedup, fixtures, smoke scripts. *Open*: file rotation handling.
+
+**Agent B (Logs)**: Complete — ANSI strip, FunctionCall/ToolCall/BackgroundEvent parsers, tool correlation, identity resolution, terminal detection, fixtures, log-parse-smoke.
+
+**Agent C (API)**: ~95% — All routes (overview, sessions, models, providers, tool-calls, activity, ingest) implemented. *Open*: api-smoke.ts contract tests.
+
+**Agent D (UI)**: ~90% — shadcn, custom theme (light/dark/system), app shell, sidebar, header, overview KPIs+charts, sessions table, session detail, activity heatmap, data hooks. *Open*: @tanstack/react-table/virtual, api-smoke.
+
+**Agent E (Live updates)**: ~95% — fs.watch-based watcher, SSE `/api/events`, useLiveUpdates, incremental ingest on file change, profiler, cache. *Open*: `/api/health` endpoint.
+
+**Implementation variations from plan**:
+
+| Plan                         | Implemented                               |
+|------------------------------|-------------------------------------------|
+| better-sqlite3               | `node:sqlite` (built-in)                  |
+| chokidar for file watching   | native `fs.watch`                         |
+| next-themes                  | custom ThemeProvider (localStorage)       |
+| SWR for data fetching        | custom `useApiData` hook                  |
+
+---
+
 ## Orchestrator (Agent 0) — Coordination & Integration
 
 ### Phase 1: Setup & Contracts
 
-- [ ] **Decision: Runtime** — Use Node.js (broader ecosystem, stable SQLite bindings)
-- [ ] **Decision: Chart library** — Use Recharts (React-native, composable, works well with shadcn)
-- [ ] **Create `src/lib/db/schema.ts`** — TypeScript types matching SQLite tables
-- [ ] **Create `src/types/api.ts`** — Shared request/response types for all API endpoints
-- [ ] **Create `src/types/metrics.ts`** — Type definitions for all computed metrics
+- [x] **Decision: Runtime** — Use Node.js (broader ecosystem, stable SQLite bindings)
+- [x] **Decision: Chart library** — Use Recharts (React-native, composable, works well with shadcn)
+- [x] **Create `src/lib/db/schema.ts`** — TypeScript types matching SQLite tables
+- [x] **Create `src/types/api.ts`** — Shared request/response types for all API endpoints
+- [x] **Create `src/types/metrics.ts`** — Type definitions for all computed metrics
 - [ ] **Document file ownership** — Assign files to agents to prevent conflicts
 
 ### Phase 2: Integration & Merge
@@ -353,33 +378,33 @@ src/lib/ingestion/
 
 #### Database Setup
 
-- [ ] Install `better-sqlite3` and `@types/better-sqlite3`
-- [ ] Create database singleton in `src/lib/db/index.ts`
+- [x] Install `better-sqlite3` and `@types/better-sqlite3` *(uses `node:sqlite` built-in instead)*
+- [x] Create database singleton in `src/lib/db/index.ts`
   - Lazy initialization on first access
   - Store DB file at `~/.codex-observ/data.db`
   - Enable WAL mode for concurrent reads
-- [ ] Write `schema.sql` with all tables from Data Model section
+- [x] Write `schema.sql` with all tables from Data Model section
   - Add indexes: `session(ts)`, `model_call(session_id, ts)`, `tool_call(ts)`
   - Add foreign key constraints (disabled by default in SQLite, enable explicitly)
-- [ ] Implement migration system with version tracking
+- [x] Implement migration system with version tracking
   - Store current version in `pragma user_version`
   - Run migrations on startup if version mismatch
 
 #### File Discovery
 
-- [ ] Implement `discoverSessionFiles(codexHome: string): string[]`
+- [x] Implement `discoverSessionFiles(codexHome: string): string[]`
   - Recursively scan `~/.codex/sessions/YYYY/MM/DD/`
   - Return files sorted by modification time (oldest first for consistent ingestion)
   - Handle missing directories gracefully
-- [ ] Implement `discoverHistoryFile(codexHome: string): string | null`
-- [ ] Add file existence caching to avoid repeated fs.stat calls
+- [x] Implement `discoverHistoryFile(codexHome: string): string | null`
+- [x] Add file existence caching to avoid repeated fs.stat calls
 
 #### Incremental JSONL Reader
 
-- [ ] Implement `IngestState` table operations
+- [x] Implement `IngestState` table operations
   - `getOffset(path: string): number`
   - `setOffset(path: string, offset: number): void`
-- [ ] Implement `readJsonlIncremental(path: string, fromOffset: number)`
+- [x] Implement `readJsonlIncremental(path: string, fromOffset: number)`
   - Use `fs.createReadStream` with `start` option
   - Parse lines with proper error handling (skip malformed lines, log warning)
   - Return `{ lines: ParsedLine[], newOffset: number }`
@@ -387,42 +412,42 @@ src/lib/ingestion/
 
 #### Parsers
 
-- [ ] `parseSessionMeta(line: object)` → `Session` record
+- [x] `parseSessionMeta(line: object)` → `Session` record
   - Extract: id, timestamp, cwd, originator, cli_version, model_provider
   - Extract git info if present: branch, commit
-- [ ] `parseResponseItem(line: object)` → `Message` record
+- [x] `parseResponseItem(line: object)` → `Message` record
   - Extract: id, session_id, role (user/assistant), timestamp
   - Generate deterministic ID from session_id + timestamp + role
-- [ ] `parseEventMsg(line: object)` → `ModelCall` record (if token_count)
+- [x] `parseEventMsg(line: object)` → `ModelCall` record (if token_count)
   - Extract all token fields: input, cached_input, output, reasoning, total
   - Handle missing fields with defaults (0)
-- [ ] `parseTurnContext(line: object)` → Session context update
+- [x] `parseTurnContext(line: object)` → Session context update
   - Update model/provider info for subsequent events in same session
 
 #### Deduplication
 
-- [ ] Implement `generateRecordId(filePath: string, lineNumber: number, payload: object): string`
+- [x] Implement `generateRecordId(filePath: string, lineNumber: number, payload: object): string`
   - Use SHA-256 hash truncated to 16 chars
   - Ensure deterministic across re-runs
-- [ ] Add upsert logic to all insert operations (INSERT OR REPLACE)
+- [x] Add upsert logic to all insert operations (INSERT OR REPLACE)
 
 #### Main Ingestion Orchestrator
 
-- [ ] Implement `ingestAll(codexHome: string): IngestResult`
+- [x] Implement `ingestAll(codexHome: string): IngestResult`
   - Discover files → read incrementally → parse → insert → update offset
   - Return stats: `{ filesProcessed, linesIngested, errors }`
-- [ ] Add progress callback for UI feedback during cold start
-- [ ] Implement batch inserts (100 records per transaction) for performance
+- [x] Add progress callback for UI feedback during cold start
+- [x] Implement batch inserts (100 records per transaction) for performance
 
 #### Fixtures & Smoke Tests
 
-- [ ] Add `src/lib/ingestion/__fixtures__/` with small JSONL samples:
+- [x] Add `src/lib/ingestion/__fixtures__/` with small JSONL samples:
   - `session_meta` line
   - `response_item` line
   - `event_msg` token_count line
   - `turn_context` line
-- [ ] Add `scripts/ingest-smoke.ts` to run ingestion against fixtures and print counts
-- [ ] Add `pnpm ingest:smoke` script for quick validation
+- [x] Add `scripts/ingest-smoke.ts` to run ingestion against fixtures and print counts
+- [x] Add `pnpm ingest:smoke` script for quick validation
 
 ### Output Format
 
@@ -482,43 +507,43 @@ src/lib/identity/
 
 #### ANSI Stripping
 
-- [ ] Implement `stripAnsi(text: string): string`
+- [x] Implement `stripAnsi(text: string): string`
   - Remove all ANSI escape sequences (colors, cursor movement, etc.)
   - Use regex: `/\x1B\[[0-9;]*[A-Za-z]/g` and extended sequences
   - Preserve actual content and timestamps
 
 #### Log Line Parsing
 
-- [ ] Implement `parseLogLine(line: string): LogEvent | null`
+- [x] Implement `parseLogLine(line: string): LogEvent | null`
   - Extract timestamp (format: `YYYY-MM-DD HH:MM:SS.mmm` or similar)
   - Identify event type from prefix patterns
   - Return structured object or null for irrelevant lines
 
 #### FunctionCall Parser
 
-- [ ] Parse lines matching `FunctionCall:` pattern
+- [x] Parse lines matching `FunctionCall:` pattern
   - Extract: command/function name, arguments (if present)
   - Extract: timestamp, correlation ID (if present)
   - Generate deterministic ID for dedup
-- [ ] Handle multi-line function calls (arguments may span lines)
+- [x] Handle multi-line function calls (arguments may span lines)
 
 #### BackgroundEvent Parser
 
-- [ ] Parse lines matching `BackgroundEvent:` pattern
+- [x] Parse lines matching `BackgroundEvent:` pattern
   - Identify failure events: "Execution failed", "Error", etc.
   - Extract: exit code, error message, stderr snippet
   - Correlate with preceding FunctionCall by timestamp proximity (< 5 min window)
 
 #### ToolCall Parser (Newer Format)
 
-- [ ] Parse lines matching `ToolCall: exec_command` pattern
+- [x] Parse lines matching `ToolCall: exec_command` pattern
   - Extract: command, arguments, working directory
   - Extract: status (pending/running/completed/failed)
   - Extract: duration if present
 
 #### Tool Call Correlation
 
-- [ ] Implement `correlateToolCalls(functionCalls: FunctionCall[], events: BackgroundEvent[]): ToolCallRecord[]`
+- [x] Implement `correlateToolCalls(functionCalls: FunctionCall[], events: BackgroundEvent[]): ToolCallRecord[]`
   - Match start events to completion/failure events
   - Use timestamp + command signature for matching
   - Mark unmatched function calls as "unknown" status
@@ -526,7 +551,7 @@ src/lib/identity/
 
 #### User Identity Resolution
 
-- [ ] Implement `resolveUserIdentity(codexHome: string): UserIdentity`
+- [x] Implement `resolveUserIdentity(codexHome: string): UserIdentity`
   - Primary: OS username via `os.userInfo().username`
   - Secondary: Parse `auth.json` for safe fields only
     - Extract: email domain (hash the local part), provider name
@@ -535,7 +560,7 @@ src/lib/identity/
 
 #### Terminal Type Detection
 
-- [ ] Implement `detectTerminalType(): TerminalInfo`
+- [x] Implement `detectTerminalType(): TerminalInfo`
   - Read `TERM` environment variable
   - Read `TERM_PROGRAM` if available (iTerm2, Terminal.app, etc.)
   - Parse TUI logs for terminal capability info if present
@@ -543,8 +568,8 @@ src/lib/identity/
 
 #### Database Integration
 
-- [ ] Create `tool_call` insert/update operations
-- [ ] Create analytics queries:
+- [x] Create `tool_call` insert/update operations
+- [x] Create analytics queries:
   - `getToolCallSuccessRate(dateRange?): number`
   - `getTopFailingCommands(limit: number): Array<{command, failCount, lastError}>`
   - `getAverageToolCallDuration(dateRange?): number`
@@ -552,12 +577,12 @@ src/lib/identity/
 
 #### Fixtures & Validation
 
-- [ ] Add `src/lib/ingestion/__fixtures__/codex-tui.log` with representative lines:
+- [x] Add `src/lib/ingestion/__fixtures__/codex-tui.log` with representative lines:
   - `FunctionCall:` entries
   - `ToolCall: exec_command` entries
   - `BackgroundEvent: Execution failed` entries
-- [ ] Add `scripts/log-parse-smoke.ts` to parse fixture log and print call counts
-- [ ] Ensure ANSI stripping handles colorized prefixes and timestamps
+- [x] Add `scripts/log-parse-smoke.ts` to parse fixture log and print call counts
+- [x] Ensure ANSI stripping handles colorized prefixes and timestamps
 
 ### Output Format
 
@@ -618,7 +643,7 @@ src/lib/metrics/
 
 #### API Route: `/api/overview`
 
-- [ ] Implement GET handler returning `OverviewResponse`
+- [x] Implement GET handler returning `OverviewResponse`
 - [ ] Query params: `startDate`, `endDate` (ISO strings, optional)
 - [ ] Response structure:
   ```typescript
@@ -644,7 +669,7 @@ src/lib/metrics/
 
 #### API Route: `/api/sessions`
 
-- [ ] Implement GET handler with pagination
+- [x] Implement GET handler with pagination
 - [ ] Query params: `page`, `limit`, `sortBy`, `sortOrder`, `model`, `provider`, `search`
 - [ ] Response structure:
   ```typescript
@@ -672,13 +697,13 @@ src/lib/metrics/
 
 #### API Route: `/api/sessions/[id]`
 
-- [ ] Implement GET handler for single session detail
+- [x] Implement GET handler for single session detail
 - [ ] Return: session metadata, all messages, all model calls, associated tool calls
 - [ ] Include computed session-level metrics
 
 #### API Route: `/api/models`
 
-- [ ] Implement GET handler returning model usage stats
+- [x] Implement GET handler returning model usage stats
 - [ ] Query params: `startDate`, `endDate`
 - [ ] Response structure:
   ```typescript
@@ -699,12 +724,12 @@ src/lib/metrics/
 
 #### API Route: `/api/providers`
 
-- [ ] Implement GET handler returning provider breakdown
+- [x] Implement GET handler returning provider breakdown
 - [ ] Response includes: call counts, token totals, model lists per provider
 
 #### API Route: `/api/tool-calls`
 
-- [ ] Implement GET handler returning tool call analytics
+- [x] Implement GET handler returning tool call analytics
 - [ ] Query params: `startDate`, `endDate`, `status`, `command`
 - [ ] Response structure:
   ```typescript
@@ -734,7 +759,7 @@ src/lib/metrics/
 
 #### API Route: `/api/activity`
 
-- [ ] Implement GET handler returning activity heatmap data
+- [x] Implement GET handler returning activity heatmap data
 - [ ] Query params: `year` (default: current year)
 - [ ] Response: 365 days of activity counts (GitHub-style)
   ```typescript
@@ -753,20 +778,20 @@ src/lib/metrics/
 
 #### API Route: `/api/ingest`
 
-- [ ] Implement POST handler to trigger manual re-ingestion
-- [ ] Implement GET handler to return current ingest status
+- [x] Implement POST handler to trigger manual re-ingestion
+- [x] Implement GET handler to return current ingest status
 - [ ] Response: `{ status: 'idle' | 'running', lastRun: string, lastResult: IngestResult }`
 
 #### Metrics Computation Layer
 
-- [ ] Implement efficient SQL queries with proper indexing
-- [ ] Add query result caching with TTL (invalidate on new data)
-- [ ] Handle edge cases: no data, divide by zero, null values
-- [ ] Implement date range filtering consistently across all metrics
+- [x] Implement efficient SQL queries with proper indexing
+- [x] Add query result caching with TTL (invalidate on new data)
+- [x] Handle edge cases: no data, divide by zero, null values
+- [x] Implement date range filtering consistently across all metrics
 
 #### Contract Tests
 
-- [ ] Add `scripts/api-smoke.ts` to call each endpoint and validate JSON shape
+- [ ] Add `scripts/api-smoke.ts` to call each endpoint and validate JSON shape *(not present)*
 - [ ] Add `src/types/api.ts` runtime guards (lightweight manual checks)
 - [ ] Ensure error responses use a consistent shape: `{ error, code }`
 
@@ -865,7 +890,7 @@ src/
 
 ### shadcn/ui Setup Tasks
 
-- [ ] Initialize shadcn/ui: `pnpm dlx shadcn@latest init`
+- [x] Initialize shadcn/ui: `pnpm dlx shadcn@latest init`
   - Style: New York (refined, professional look)
   - Base color: Zinc (professional, works well for dashboards)
   - CSS variables: Yes
@@ -891,8 +916,8 @@ src/
 
 #### Implementation Tasks
 
-- [ ] Install and configure `next-themes`
-- [ ] Create `src/components/providers/theme-provider.tsx`:
+- [x] Install and configure `next-themes` *(custom ThemeProvider with localStorage used instead)*
+- [x] Create `src/components/providers/theme-provider.tsx` *(in `use-theme.tsx` as ThemeProvider)*:
 
   ```typescript
   'use client'
@@ -912,20 +937,20 @@ src/
   }
   ```
 
-- [ ] Create `src/components/layout/theme-toggle.tsx`:
+- [x] Create `src/components/layout/theme-toggle.tsx`:
   - Three-state toggle: Light / Dark / System
   - Use `DropdownMenu` from shadcn for selection
   - Show current effective theme (sun/moon/monitor icon)
   - Animate icon transition smoothly
-- [ ] Update `src/app/layout.tsx`:
+- [x] Update `src/app/layout.tsx`:
   - Wrap app in `ThemeProvider`
   - Add `suppressHydrationWarning` to `<html>` tag
   - Set `className` to enable dark mode: `dark:bg-background`
-- [ ] Configure Tailwind for dark mode (already set via shadcn init)
+- [x] Configure Tailwind for dark mode (already set via shadcn init)
 
 #### Color Palette Guidelines
 
-- [ ] Use shadcn CSS variables for all colors (automatically theme-aware)
+- [x] Use shadcn CSS variables for all colors (automatically theme-aware)
 - [ ] Define chart colors in `globals.css` with dark mode variants:
   ```css
   :root {
@@ -1239,7 +1264,7 @@ src/
 
 #### App Shell (`src/components/layout/app-shell.tsx`)
 
-- [ ] Use shadcn sidebar component as base
+- [x] Use shadcn sidebar component as base
 - [ ] Collapsible sidebar on desktop (icon-only mode with tooltip labels)
 - [ ] Sheet-based sidebar on mobile (hamburger trigger in header)
 - [ ] Persist sidebar collapsed state in localStorage
@@ -1254,7 +1279,7 @@ src/
 
 #### Header (`src/components/layout/header.tsx`)
 
-- [ ] Sticky header: `sticky top-0 z-40 bg-background/95 backdrop-blur`
+- [x] Sticky header: `sticky top-0 z-40 bg-background/95 backdrop-blur`
 - [ ] Contains:
   - Mobile menu trigger (hamburger)
   - Page title / breadcrumb
@@ -1264,7 +1289,7 @@ src/
 
 #### Theme Toggle (`src/components/layout/theme-toggle.tsx`)
 
-- [ ] Three-state dropdown using shadcn DropdownMenu:
+- [x] Three-state dropdown using shadcn DropdownMenu:
   ```tsx
   <DropdownMenu>
     <DropdownMenuTrigger asChild>
@@ -1295,7 +1320,7 @@ src/
 
 #### Overview Dashboard (`src/app/page.tsx`)
 
-- [ ] 4-column KPI grid (1 col mobile, 2 col tablet, 4 col desktop)
+- [x] 4-column KPI grid (1 col mobile, 2 col tablet, 4 col desktop)
 - [ ] KPIs: Total Tokens, Cache Hit Rate, Sessions, Success Rate
 - [ ] Each KPI shows: value, trend indicator, comparison to previous period
 - [ ] Charts section below KPIs:
@@ -1308,7 +1333,7 @@ src/
 
 #### Sessions Table (`src/components/sessions/sessions-table.tsx`)
 
-- [ ] Columns: Time, Project, Model, Messages, Tokens, Duration
+- [x] Columns: Time, Project, Model, Messages, Tokens, Duration
 - [ ] Features:
   - Sortable columns (click header to sort)
   - Column visibility toggle
@@ -1325,7 +1350,7 @@ src/
 
 #### Session Detail (`src/app/sessions/[id]/page.tsx`)
 
-- [ ] Header: Project name, timestamp, model badge, duration
+- [x] Header: Project name, timestamp, model badge, duration
 - [ ] Metadata cards: Token breakdown, message count, tool calls
 - [ ] Timeline view of messages (alternating user/assistant)
 - [ ] Model calls list with token details
@@ -1334,7 +1359,7 @@ src/
 
 #### Activity Heatmap (`src/app/activity/page.tsx`)
 
-- [ ] Full-width heatmap component
+- [x] Full-width heatmap component
 - [ ] Year selector dropdown (last 3 years available)
 - [ ] Summary stats above heatmap:
   - Total contributions this year
@@ -1345,7 +1370,7 @@ src/
 
 ### Data Fetching Hooks
 
-- [ ] Use SWR for all data fetching with consistent pattern:
+- [x] Use SWR for all data fetching with consistent pattern *(custom `useApiData` + `useApi` used instead)*:
 
   ```tsx
   export function useOverview(dateRange: DateRange) {
@@ -1426,8 +1451,8 @@ src/lib/performance/
 
 #### File Watcher Implementation
 
-- [ ] Install `chokidar` for cross-platform file watching
-- [ ] Implement `SessionWatcher` class:
+- [x] Install `chokidar` for cross-platform file watching *(uses native `fs.watch` instead)*
+- [x] Implement `SessionWatcher` class:
   - Watch `~/.codex/sessions/` recursively for new/changed `.jsonl` files
   - Watch `~/.codex/log/codex-tui.log` for new entries
   - Debounce rapid changes (100ms window)
@@ -1438,7 +1463,7 @@ src/lib/performance/
 
 #### Server-Sent Events (SSE) Endpoint
 
-- [ ] Implement `/api/events` SSE endpoint:
+- [x] Implement `/api/events` SSE endpoint:
 
   ```typescript
   export async function GET(request: Request) {
@@ -1489,7 +1514,7 @@ src/lib/performance/
 
 #### Client-Side Live Updates
 
-- [ ] Implement `useLiveUpdates()` hook:
+- [x] Implement `useLiveUpdates()` hook:
 
   ```typescript
   export function useLiveUpdates() {
@@ -1549,7 +1574,7 @@ src/lib/performance/
 
 #### Incremental Ingest on File Change
 
-- [ ] On watcher event, trigger incremental ingest for changed file only
+- [x] On watcher event, trigger incremental ingest for changed file only
 - [ ] Batch rapid changes (multiple files in 500ms window) into single ingest run
 - [ ] Update `ingest_state` atomically
 - [ ] Broadcast `data-updated` SSE event after successful ingest
@@ -1557,7 +1582,7 @@ src/lib/performance/
 
 #### Performance Profiling
 
-- [ ] Implement performance measurement utility:
+- [x] Implement performance measurement utility:
 
   ```typescript
   export async function measureAsync<T>(
@@ -1582,7 +1607,7 @@ src/lib/performance/
   - API endpoint handlers (each route)
   - Complex database queries
 - [ ] Log slow operations (> 100ms) with details
-- [ ] Create `/api/health` endpoint:
+- [ ] Create `/api/health` endpoint *(not present; sync-status exists instead)*:
   ```typescript
   {
     "status": "healthy",
@@ -1608,7 +1633,7 @@ src/lib/performance/
 
 #### Query Performance Optimization
 
-- [ ] Analyze query patterns with EXPLAIN QUERY PLAN
+- [x] Analyze query patterns with EXPLAIN QUERY PLAN
 - [ ] Add database indexes based on actual query patterns:
   ```sql
   CREATE INDEX idx_session_ts ON session(ts DESC);
@@ -1617,7 +1642,7 @@ src/lib/performance/
   CREATE INDEX idx_tool_call_ts ON tool_call(ts DESC);
   CREATE INDEX idx_daily_activity_date ON daily_activity(date DESC);
   ```
-- [ ] Implement query result caching:
+- [x] Implement query result caching:
 
   ```typescript
   const cache = new Map<string, { data: unknown; expires: number }>()
