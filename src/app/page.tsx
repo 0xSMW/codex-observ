@@ -1,6 +1,6 @@
 'use client'
 
-import { Cpu, DollarSign, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
+import { Clock, Cpu, DollarSign, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useOverview } from '@/hooks/use-overview'
@@ -81,6 +81,22 @@ export default function OverviewPage() {
           trend: getTrend(kpis.totalCost.delta),
           icon: <DollarSign className="h-4 w-4" />,
           formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `$${v.toFixed(2)}` : '—'),
+        },
+        {
+          label: 'Avg model latency',
+          value: kpis.avgModelDurationMs.value,
+          change: kpis.avgModelDurationMs.deltaPct ?? 0,
+          trend: getTrend(kpis.avgModelDurationMs.delta),
+          icon: <Clock className="h-4 w-4" />,
+          formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `${Math.round(v)}ms` : '—'),
+        },
+        {
+          label: 'Avg tool latency',
+          value: kpis.avgToolDurationMs.value,
+          change: kpis.avgToolDurationMs.deltaPct ?? 0,
+          trend: getTrend(kpis.avgToolDurationMs.delta),
+          icon: <Clock className="h-4 w-4" />,
+          formatValue: (v: number) => (Number.isFinite(v) && v > 0 ? `${Math.round(v)}ms` : '—'),
         },
       ]
     : []
