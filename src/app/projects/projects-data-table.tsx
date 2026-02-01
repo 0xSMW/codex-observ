@@ -43,8 +43,7 @@ export function ProjectsDataTable({
     pageCount,
     state: { pagination },
     onPaginationChange: (updater) => {
-      const nextPagination =
-        typeof updater === 'function' ? updater(pagination) : updater
+      const nextPagination = typeof updater === 'function' ? updater(pagination) : updater
       onPaginationChange(() => nextPagination)
     },
   })
