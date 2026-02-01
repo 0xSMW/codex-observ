@@ -117,3 +117,24 @@ export function getPreviousRange(range: DateRange): DateRange | null {
   const prevStart = prevEnd - duration
   return { startMs: prevStart, endMs: prevEnd }
 }
+
+/** Default range: last 30 days, aligned with DateRangeProvider. */
+export function getDefaultRange(): DateRange {
+  const end = new Date()
+  end.setHours(0, 0, 0, 0)
+  const endMs = end.getTime()
+  const startMs = endMs - 29 * 24 * 60 * 60 * 1000
+  return { startMs, endMs }
+}
+
+/** Use provided range or default when empty. */
+export function resolveRange(params: URLSearchParams): DateRangeParseResult {
+  const result = getDateRange(params)
+  if (result.range.startMs !== undefined && result.range.endMs !== undefined) {
+    return result
+  }
+  return {
+    range: getDefaultRange(),
+    errors: result.errors,
+  }
+}
