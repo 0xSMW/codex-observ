@@ -2,8 +2,9 @@
  * Run incremental ingest from default Codex home (~/.codex) then backfill
  * project_id/project_ref_id for any sessions that don't have them.
  * Use: pnpm exec tsx scripts/run-ingest-and-backfill.ts
+ * Use: pnpm exec tsx scripts/run-ingest-and-backfill.ts --full  (re-ingest all files)
  */
-import { ingestIncremental } from '../src/lib/ingestion'
+import { ingestAll, ingestIncremental } from '../src/lib/ingestion'
 import {
   backfillSessionProjects,
   refreshProjectNames,
@@ -11,8 +12,9 @@ import {
 import { closeDb, getDb } from '../src/lib/db'
 
 async function main(): Promise<void> {
-  console.log('Running incremental ingest...')
-  const result = await ingestIncremental()
+  const full = process.argv.includes('--full')
+  console.log(full ? 'Running full ingest...' : 'Running incremental ingest...')
+  const result = full ? await ingestAll() : await ingestIncremental()
   console.log('Ingest result:', {
     filesProcessed: result.filesProcessed,
     linesIngested: result.linesIngested,
