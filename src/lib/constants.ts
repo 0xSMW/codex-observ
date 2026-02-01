@@ -13,7 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'Daily activity for year',
   },
   { title: 'Trends', href: '/trends', icon: 'Calendar', description: 'KPIs and trends' },
-  { title: 'Projects', href: '/projects', icon: 'FolderGit2', description: 'Project rollups' },
+  { title: 'Projects', href: '/projects', icon: 'FolderGit2', description: 'Repo rollups' },
   { title: 'Sessions', href: '/sessions', icon: 'MessageSquare', description: 'Session history' },
   { title: 'Tools', href: '/tools', icon: 'TerminalSquare', description: 'Tool call analytics' },
   { title: 'Models', href: '/models', icon: 'Cpu', description: 'Models & providers' },
