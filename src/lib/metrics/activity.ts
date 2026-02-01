@@ -68,7 +68,7 @@ export function getActivity(range: DateRange): ActivityResult {
         ${whereSql}
         ORDER BY date ASC`
       )
-      .all(params) as Record<string, unknown>[]
+      .all(...params) as Record<string, unknown>[]
 
     for (const row of rows) {
       const date = String(row.date ?? '')
@@ -94,7 +94,7 @@ export function getActivity(range: DateRange): ActivityResult {
           GROUP BY date
           ORDER BY date ASC`
         )
-        .all(params) as Record<string, unknown>[]
+        .all(...params) as Record<string, unknown>[]
 
       for (const row of rows) {
         const date = String(row.date ?? '')
@@ -124,7 +124,7 @@ export function getActivity(range: DateRange): ActivityResult {
           GROUP BY date
           ORDER BY date ASC`
         )
-        .all(params) as Record<string, unknown>[]
+        .all(...params) as Record<string, unknown>[]
 
       for (const row of rows) {
         const date = String(row.date ?? '')

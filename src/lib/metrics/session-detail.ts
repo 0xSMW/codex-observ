@@ -160,9 +160,13 @@ export function getSessionDetail(
 
   const messageCount = hasMessage
     ? toNumber(
-        db
-          .prepare(`SELECT COUNT(*) AS count FROM message WHERE ${statsWhereMessage.join(' AND ')}`)
-          .get(statsParamsMessage)?.count
+        (
+          db
+            .prepare(
+              `SELECT COUNT(*) AS count FROM message WHERE ${statsWhereMessage.join(' AND ')}`
+            )
+            .get(statsParamsMessage) as { count: number } | undefined
+        )?.count
       )
     : 0
 
@@ -247,13 +251,13 @@ export function getSessionDetail(
     const whereSql = where.join(' AND ')
     const countRow = db
       .prepare(`SELECT COUNT(*) AS total FROM message WHERE ${whereSql}`)
-      .get(params) as Record<string, unknown> | undefined
+      .get(...params) as Record<string, unknown> | undefined
     messages.total = toNumber(countRow?.total)
     const rows = db
       .prepare(
         `SELECT id, ts, role, content FROM message WHERE ${whereSql} ORDER BY ts ASC LIMIT ? OFFSET ?`
       )
-      .all([...params, messagePagination.limit, messagePagination.offset]) as Record<
+      .all(...params, messagePagination.limit, messagePagination.offset) as Record<
       string,
       unknown
     >[]
@@ -273,7 +277,7 @@ export function getSessionDetail(
     const whereSql = where.join(' AND ')
     const countRow = db
       .prepare(`SELECT COUNT(*) AS total FROM model_call WHERE ${whereSql}`)
-      .get(params) as Record<string, unknown> | undefined
+      .get(...params) as Record<string, unknown> | undefined
     modelCalls.total = toNumber(countRow?.total)
     const rows = db
       .prepare(
@@ -283,7 +287,7 @@ export function getSessionDetail(
         ORDER BY ts ASC
         LIMIT ? OFFSET ?`
       )
-      .all([...params, modelPagination.limit, modelPagination.offset]) as Record<string, unknown>[]
+      .all(...params, modelPagination.limit, modelPagination.offset) as Record<string, unknown>[]
     modelCalls.items = rows.map((row) => ({
       id: String(row.id ?? ''),
       ts: toNumber(row.ts),
@@ -305,7 +309,7 @@ export function getSessionDetail(
     const whereSql = where.join(' AND ')
     const countRow = db
       .prepare(`SELECT COUNT(*) AS total FROM tool_call WHERE ${whereSql}`)
-      .get(params) as Record<string, unknown> | undefined
+      .get(...params) as Record<string, unknown> | undefined
     toolCalls.total = toNumber(countRow?.total)
     const rows = db
       .prepare(
@@ -315,7 +319,7 @@ export function getSessionDetail(
         ORDER BY start_ts ASC
         LIMIT ? OFFSET ?`
       )
-      .all([...params, toolPagination.limit, toolPagination.offset]) as Record<string, unknown>[]
+      .all(...params, toolPagination.limit, toolPagination.offset) as Record<string, unknown>[]
     toolCalls.items = rows.map((row) => ({
       id: String(row.id ?? ''),
       toolName: String(row.tool_name ?? ''),

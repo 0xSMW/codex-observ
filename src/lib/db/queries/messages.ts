@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import type { Db } from '../index'
 
 export type MessageRole = 'user' | 'assistant' | 'system'
 
@@ -13,15 +13,16 @@ export interface MessageRecord {
   dedup_key: string
 }
 
+type Stmt = ReturnType<Db['prepare']>
 type Statements = {
-  insert: ReturnType<Database.Database['prepare']>
-  getById: ReturnType<Database.Database['prepare']>
-  deleteById: ReturnType<Database.Database['prepare']>
+  insert: Stmt
+  getById: Stmt
+  deleteById: Stmt
 }
 
-const statementCache = new WeakMap<Database.Database, Statements>()
+const statementCache = new WeakMap<Db, Statements>()
 
-function getStatements(db: Database.Database): Statements {
+function getStatements(db: Db): Statements {
   const cached = statementCache.get(db)
   if (cached) {
     return cached
@@ -48,17 +49,17 @@ function getStatements(db: Database.Database): Statements {
   return statements
 }
 
-export function insertMessage(db: Database.Database, record: MessageRecord): boolean {
+export function insertMessage(db: Db, record: MessageRecord): boolean {
   const result = getStatements(db).insert.run(record)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }
 
-export function getMessageById(db: Database.Database, id: string): MessageRecord | null {
+export function getMessageById(db: Db, id: string): MessageRecord | null {
   const row = getStatements(db).getById.get(id) as MessageRecord | undefined
   return row ?? null
 }
 
-export function deleteMessageById(db: Database.Database, id: string): boolean {
+export function deleteMessageById(db: Db, id: string): boolean {
   const result = getStatements(db).deleteById.run(id)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }

@@ -1,3 +1,5 @@
+don't edit package.json directly, package is updated by using pnpm commands
+
 # Multi-agent Orchestration (Codex CLI)
 
 ## Scope

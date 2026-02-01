@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import Database from 'better-sqlite3'
+import type { DatabaseSync } from 'node:sqlite'
 
 const SCHEMA_VERSION = 1
 
@@ -9,8 +9,9 @@ function loadSchemaSql(): string {
   return fs.readFileSync(schemaPath, 'utf8')
 }
 
-export function ensureMigrations(db: Database.Database): void {
-  const currentVersion = db.pragma('user_version', { simple: true }) as number
+export function ensureMigrations(db: DatabaseSync): void {
+  const row = db.prepare('PRAGMA user_version').get() as { user_version: number } | undefined
+  const currentVersion = row?.user_version ?? 0
 
   if (currentVersion === SCHEMA_VERSION) {
     return
@@ -24,5 +25,5 @@ export function ensureMigrations(db: Database.Database): void {
 
   const schemaSql = loadSchemaSql()
   db.exec(schemaSql)
-  db.pragma(`user_version = ${SCHEMA_VERSION}`)
+  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
 }

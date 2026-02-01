@@ -85,7 +85,7 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
       FROM model_call
       ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined
+    .get(...params) as Record<string, unknown> | undefined
 
   return {
     inputTokens: toNumber(row?.input_tokens),
@@ -106,7 +106,7 @@ function querySessionsCount(db: ReturnType<typeof getDatabase>, range: DateRange
   const params: unknown[] = []
   applyDateRange('ts', range, where, params)
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
-  const row = db.prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`).get(params) as
+  const row = db.prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`).get(...params) as
     | Record<string, unknown>
     | undefined
   return toNumber(row?.sessions)
@@ -130,7 +130,7 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
       FROM tool_call
       ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined
+    .get(...params) as Record<string, unknown> | undefined
 
   return {
     toolCalls: toNumber(row?.tool_calls),
@@ -166,7 +166,7 @@ function queryDailySeries(
       GROUP BY date
       ORDER BY date ASC`
     )
-    .all(params) as Record<string, unknown>[]
+    .all(...params) as Record<string, unknown>[]
 
   return rows.map((row) => {
     const inputTokens = toNumber(row.input_tokens)

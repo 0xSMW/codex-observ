@@ -383,8 +383,9 @@ async function countNewlinesBeforeOffset(filePath: string, offset: number): Prom
   return new Promise((resolve, reject) => {
     let count = 0
     const stream = fs.createReadStream(filePath, { start: 0, end: offset - 1 })
-    stream.on('data', (chunk: Buffer) => {
-      for (const byte of chunk) {
+    stream.on('data', (chunk: Buffer | string) => {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, 'utf8')
+      for (const byte of buf) {
         if (byte === 10) count += 1
       }
     })

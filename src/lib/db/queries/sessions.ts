@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import type { Db } from '../index'
 
 export interface SessionRecord {
   id: string
@@ -14,15 +14,16 @@ export interface SessionRecord {
   dedup_key: string
 }
 
+type Stmt = ReturnType<Db['prepare']>
 type Statements = {
-  insert: ReturnType<Database.Database['prepare']>
-  getById: ReturnType<Database.Database['prepare']>
-  deleteById: ReturnType<Database.Database['prepare']>
+  insert: Stmt
+  getById: Stmt
+  deleteById: Stmt
 }
 
-const statementCache = new WeakMap<Database.Database, Statements>()
+const statementCache = new WeakMap<Db, Statements>()
 
-function getStatements(db: Database.Database): Statements {
+function getStatements(db: Db): Statements {
   const cached = statementCache.get(db)
   if (cached) {
     return cached
@@ -52,17 +53,17 @@ function getStatements(db: Database.Database): Statements {
   return statements
 }
 
-export function insertSession(db: Database.Database, record: SessionRecord): boolean {
+export function insertSession(db: Db, record: SessionRecord): boolean {
   const result = getStatements(db).insert.run(record)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }
 
-export function getSessionById(db: Database.Database, id: string): SessionRecord | null {
+export function getSessionById(db: Db, id: string): SessionRecord | null {
   const row = getStatements(db).getById.get(id) as SessionRecord | undefined
   return row ?? null
 }
 
-export function deleteSessionById(db: Database.Database, id: string): boolean {
+export function deleteSessionById(db: Db, id: string): boolean {
   const result = getStatements(db).deleteById.run(id)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }

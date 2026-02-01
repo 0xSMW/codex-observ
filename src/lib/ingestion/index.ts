@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import Database from 'better-sqlite3'
+import type { Db } from '../db'
 import { getDb } from '../db'
 import { getIngestState, setIngestState } from '../db/queries/ingest-state'
 import { insertSession, type SessionRecord } from '../db/queries/sessions'
@@ -62,9 +62,9 @@ function chunkArray<T>(items: T[], chunkSize: number): T[][] {
 }
 
 function insertBatched<T extends { source_line: number }>(
-  db: Database.Database,
+  db: Db,
   records: T[],
-  insertFn: (db: Database.Database, record: T) => boolean,
+  insertFn: (db: Db, record: T) => boolean,
   errors: IngestError[],
   filePath: string
 ): void {

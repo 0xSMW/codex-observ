@@ -64,7 +64,7 @@ export function getIngestState(options: IngestListOptions): IngestListResult {
 
   const totalRow = db
     .prepare(`SELECT COUNT(*) AS total FROM ingest_state ${whereSql}`)
-    .get(params) as Record<string, unknown> | undefined
+    .get(...params) as Record<string, unknown> | undefined
   const total = toNumber(totalRow?.total)
 
   const summaryRow = db
@@ -72,7 +72,7 @@ export function getIngestState(options: IngestListOptions): IngestListResult {
       `SELECT COUNT(*) AS total_files, MAX(updated_at) AS last_updated_at
       FROM ingest_state ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined
+    .get(...params) as Record<string, unknown> | undefined
 
   const rows = db
     .prepare(
@@ -82,7 +82,7 @@ export function getIngestState(options: IngestListOptions): IngestListResult {
       ORDER BY updated_at DESC
       LIMIT ? OFFSET ?`
     )
-    .all([...params, options.pagination.limit, options.pagination.offset]) as Record<
+    .all(...params, options.pagination.limit, options.pagination.offset) as Record<
     string,
     unknown
   >[]

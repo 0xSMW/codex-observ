@@ -98,9 +98,9 @@ export function getSessionsList(options: SessionsListOptions): SessionsListResul
   const { where, params } = buildWhere(options, hasModelCall)
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM session s ${whereSql}`).get(params) as
-    | Record<string, unknown>
-    | undefined
+  const totalRow = db
+    .prepare(`SELECT COUNT(*) AS total FROM session s ${whereSql}`)
+    .get(...params) as Record<string, unknown> | undefined
   const total = toNumber(totalRow?.total)
 
   const messageCountSql = hasMessage
@@ -192,7 +192,7 @@ export function getSessionsList(options: SessionsListOptions): SessionsListResul
       ORDER BY s.ts DESC
       LIMIT ? OFFSET ?`
     )
-    .all([...params, options.pagination.limit, options.pagination.offset]) as Record<
+    .all(...params, options.pagination.limit, options.pagination.offset) as Record<
     string,
     unknown
   >[]

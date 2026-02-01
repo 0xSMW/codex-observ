@@ -26,9 +26,9 @@ export interface DateRange {
 
 export interface DbLike {
   prepare: (sql: string) => {
-    run: (...params: any[]) => { changes?: number }
-    get: (...params: any[]) => unknown
-    all: (...params: any[]) => unknown[]
+    run: (...params: unknown[]) => { changes?: number | bigint }
+    get: (...params: unknown[]) => unknown
+    all: (...params: unknown[]) => unknown[]
   }
   transaction?: <T>(fn: () => T) => () => T
 }
@@ -82,7 +82,7 @@ export function insertToolCalls(db: DbLike, records: ToolCallInsert[]): number {
         id: record.id ?? record.dedup_key,
       }
       const result = stmt.run(payload)
-      changes += result?.changes ?? 0
+      changes += Number(result?.changes ?? 0)
     }
   }
 

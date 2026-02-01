@@ -1,10 +1,14 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import Database from 'better-sqlite3'
+import { DatabaseSync } from 'node:sqlite'
 import { ensureMigrations } from './migrations'
 
-let dbInstance: Database.Database | null = null
+export type Db = DatabaseSync & {
+  transaction: <T, A extends unknown[]>(fn: (...args: A) => T) => (...args: A) => T
+}
+
+let dbInstance: Db | null = null
 
 function resolveDbPath(): string {
   const envPath = process.env.CODEX_OBSERV_DB_PATH
@@ -14,7 +18,25 @@ function resolveDbPath(): string {
   return path.join(os.homedir(), '.codex-observ', 'data.db')
 }
 
-export function getDb(): Database.Database {
+function addTransaction(db: DatabaseSync): Db {
+  const ext = db as Db
+  ext.transaction = <T, A extends unknown[]>(fn: (...args: A) => T) => {
+    return (...args: A): T => {
+      db.exec('BEGIN')
+      try {
+        const result = fn(...args)
+        db.exec('COMMIT')
+        return result
+      } catch (e) {
+        db.exec('ROLLBACK')
+        throw e
+      }
+    }
+  }
+  return ext
+}
+
+export function getDb(): Db {
   if (dbInstance) {
     return dbInstance
   }
@@ -22,13 +44,15 @@ export function getDb(): Database.Database {
   const dbPath = resolveDbPath()
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
-  db.pragma('busy_timeout = 5000')
+  const db = new DatabaseSync(dbPath, {
+    timeout: 5000,
+    enableForeignKeyConstraints: true,
+  })
+  db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA busy_timeout = 5000')
 
-  ensureMigrations(db)
-  dbInstance = db
+  dbInstance = addTransaction(db)
+  ensureMigrations(dbInstance)
   return dbInstance
 }
 

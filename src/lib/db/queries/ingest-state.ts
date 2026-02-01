@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import type { Db } from '../index'
 
 export interface IngestStateRecord {
   path: string
@@ -7,15 +7,16 @@ export interface IngestStateRecord {
   updated_at: number
 }
 
+type Stmt = ReturnType<Db['prepare']>
 type Statements = {
-  getByPath: ReturnType<Database.Database['prepare']>
-  upsert: ReturnType<Database.Database['prepare']>
-  deleteByPath: ReturnType<Database.Database['prepare']>
+  getByPath: Stmt
+  upsert: Stmt
+  deleteByPath: Stmt
 }
 
-const statementCache = new WeakMap<Database.Database, Statements>()
+const statementCache = new WeakMap<Db, Statements>()
 
-function getStatements(db: Database.Database): Statements {
+function getStatements(db: Db): Statements {
   const cached = statementCache.get(db)
   if (cached) {
     return cached
@@ -40,13 +41,13 @@ function getStatements(db: Database.Database): Statements {
   return statements
 }
 
-export function getIngestState(db: Database.Database, path: string): IngestStateRecord | null {
+export function getIngestState(db: Db, path: string): IngestStateRecord | null {
   const row = getStatements(db).getByPath.get(path) as IngestStateRecord | undefined
   return row ?? null
 }
 
 export function setIngestState(
-  db: Database.Database,
+  db: Db,
   state: Omit<IngestStateRecord, 'updated_at'> & { updated_at?: number }
 ): void {
   const now = state.updated_at ?? Date.now()
@@ -58,7 +59,7 @@ export function setIngestState(
   })
 }
 
-export function deleteIngestState(db: Database.Database, path: string): boolean {
+export function deleteIngestState(db: Db, path: string): boolean {
   const result = getStatements(db).deleteByPath.run(path)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }

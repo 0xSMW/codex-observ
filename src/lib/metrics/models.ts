@@ -50,7 +50,7 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
 
   const totalRow = db
     .prepare(`SELECT COUNT(DISTINCT model) AS total FROM model_call ${whereSql}`)
-    .get(params) as Record<string, unknown> | undefined
+    .get(...params) as Record<string, unknown> | undefined
   const total = toNumber(totalRow?.total)
 
   const rows = db
@@ -70,7 +70,7 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
       ORDER BY total_tokens DESC
       LIMIT ? OFFSET ?`
     )
-    .all([...params, options.pagination.limit, options.pagination.offset]) as Record<
+    .all(...params, options.pagination.limit, options.pagination.offset) as Record<
     string,
     unknown
   >[]

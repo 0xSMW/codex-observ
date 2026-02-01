@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3'
+import type { Db } from '../index'
 
 export interface ModelCallRecord {
   id: string
@@ -16,15 +16,16 @@ export interface ModelCallRecord {
   dedup_key: string
 }
 
+type Stmt = ReturnType<Db['prepare']>
 type Statements = {
-  insert: ReturnType<Database.Database['prepare']>
-  getById: ReturnType<Database.Database['prepare']>
-  deleteById: ReturnType<Database.Database['prepare']>
+  insert: Stmt
+  getById: Stmt
+  deleteById: Stmt
 }
 
-const statementCache = new WeakMap<Database.Database, Statements>()
+const statementCache = new WeakMap<Db, Statements>()
 
-function getStatements(db: Database.Database): Statements {
+function getStatements(db: Db): Statements {
   const cached = statementCache.get(db)
   if (cached) {
     return cached
@@ -57,17 +58,17 @@ function getStatements(db: Database.Database): Statements {
   return statements
 }
 
-export function insertModelCall(db: Database.Database, record: ModelCallRecord): boolean {
+export function insertModelCall(db: Db, record: ModelCallRecord): boolean {
   const result = getStatements(db).insert.run(record)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }
 
-export function getModelCallById(db: Database.Database, id: string): ModelCallRecord | null {
+export function getModelCallById(db: Db, id: string): ModelCallRecord | null {
   const row = getStatements(db).getById.get(id) as ModelCallRecord | undefined
   return row ?? null
 }
 
-export function deleteModelCallById(db: Database.Database, id: string): boolean {
+export function deleteModelCallById(db: Db, id: string): boolean {
   const result = getStatements(db).deleteById.run(id)
-  return result.changes > 0
+  return Number(result.changes ?? 0) > 0
 }

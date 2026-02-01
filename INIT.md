@@ -1346,6 +1346,7 @@ src/
 ### Data Fetching Hooks
 
 - [ ] Use SWR for all data fetching with consistent pattern:
+
   ```tsx
   export function useOverview(dateRange: DateRange) {
     const params = new URLSearchParams({
@@ -1360,6 +1361,7 @@ src/
     })
   }
   ```
+
 - [ ] Implement error boundaries with retry UI
 - [ ] Share date range state via React Context
 - [ ] Global SWR config in provider:
@@ -1437,6 +1439,7 @@ src/lib/performance/
 #### Server-Sent Events (SSE) Endpoint
 
 - [ ] Implement `/api/events` SSE endpoint:
+
   ```typescript
   export async function GET(request: Request) {
     const encoder = new TextEncoder()
@@ -1474,6 +1477,7 @@ src/lib/performance/
     })
   }
   ```
+
 - [ ] Event types to send:
   - `data-updated`: new data available, client should refetch
   - `ingest-progress`: during re-ingestion, send progress %
@@ -1486,6 +1490,7 @@ src/lib/performance/
 #### Client-Side Live Updates
 
 - [ ] Implement `useLiveUpdates()` hook:
+
   ```typescript
   export function useLiveUpdates() {
     const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
@@ -1532,6 +1537,7 @@ src/lib/performance/
     return { status, lastUpdate }
   }
   ```
+
 - [ ] Visual feedback for live updates:
   - Connection status indicator in sidebar footer
   - Subtle highlight animation on updated data (optional)
@@ -1552,6 +1558,7 @@ src/lib/performance/
 #### Performance Profiling
 
 - [ ] Implement performance measurement utility:
+
   ```typescript
   export async function measureAsync<T>(
     name: string,
@@ -1569,6 +1576,7 @@ src/lib/performance/
     return result
   }
   ```
+
 - [ ] Add profiling to critical paths:
   - Ingestion pipeline (per-file and total)
   - API endpoint handlers (each route)

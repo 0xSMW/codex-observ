@@ -96,9 +96,9 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
 
-  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM tool_call ${whereSql}`).get(params) as
-    | Record<string, unknown>
-    | undefined
+  const totalRow = db
+    .prepare(`SELECT COUNT(*) AS total FROM tool_call ${whereSql}`)
+    .get(...params) as Record<string, unknown> | undefined
   const total = toNumber(totalRow?.total)
 
   const summaryRow = db
@@ -112,7 +112,7 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       FROM tool_call
       ${whereSql}`
     )
-    .get(params) as Record<string, unknown> | undefined
+    .get(...params) as Record<string, unknown> | undefined
 
   const ok = toNumber(summaryRow?.ok_count)
   const failed = toNumber(summaryRow?.failed_count)
@@ -127,7 +127,7 @@ export function getToolCallsList(options: ToolCallsListOptions): ToolCallsListRe
       ORDER BY start_ts DESC
       LIMIT ? OFFSET ?`
     )
-    .all([...params, options.pagination.limit, options.pagination.offset]) as Record<
+    .all(...params, options.pagination.limit, options.pagination.offset) as Record<
     string,
     unknown
   >[]
