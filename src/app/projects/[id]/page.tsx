@@ -16,13 +16,12 @@ import { useApiData } from '@/hooks/use-api'
 import { formatCompactNumber, formatPercent, formatCurrency } from '@/lib/constants'
 import { KpiSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
-import { 
-  FolderGit2, 
-  GitBranch, 
-  GitCommit,
-  ExternalLink 
-} from 'lucide-react'
-import { ProjectHistoryChart, ProjectTokenBreakdown, ProjectTokenUsageChart } from '@/components/projects/project-detail-charts'
+import { FolderGit2, GitBranch, GitCommit, ExternalLink } from 'lucide-react'
+import {
+  ProjectHistoryChart,
+  ProjectTokenBreakdown,
+  ProjectTokenUsageChart,
+} from '@/components/projects/project-detail-charts'
 import { DailyProjectStat, ModelBreakdown } from '@/lib/metrics/projects'
 
 type ProjectDetailResponse = {
@@ -113,13 +112,15 @@ export default function ProjectDetailPage() {
                 {project.name}
               </CardTitle>
               {project.rootPath && (
-                <p className="text-sm text-muted-foreground font-normal font-mono">{project.rootPath}</p>
+                <p className="text-sm text-muted-foreground font-normal font-mono">
+                  {project.rootPath}
+                </p>
               )}
             </div>
             {project.gitRemote && (
-              <a 
-                href={project.gitRemote} 
-                target="_blank" 
+              <a
+                href={project.gitRemote}
+                target="_blank"
                 rel="noreferrer"
                 className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 hover:underline"
               >
@@ -137,28 +138,28 @@ export default function ProjectDetailPage() {
             </div>
           </div>
           <div className="rounded-lg border bg-muted/40 p-3">
-             <div className="text-xs uppercase text-muted-foreground mb-1">Tokens</div>
-             <div className="text-2xl font-bold tabular-nums">
+            <div className="text-xs uppercase text-muted-foreground mb-1">Tokens</div>
+            <div className="text-2xl font-bold tabular-nums">
               {formatCompactNumber(project.totalTokens)}
-             </div>
-             <div className="text-xs text-muted-foreground mt-1">
-               {formatPercent(project.cacheHitRate)} cache hit
-             </div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {formatPercent(project.cacheHitRate)} cache hit
+            </div>
           </div>
           <div className="rounded-lg border bg-muted/40 p-3">
-             <div className="text-xs uppercase text-muted-foreground mb-1">Est. Cost</div>
-             <div className="text-2xl font-bold tabular-nums">
+            <div className="text-xs uppercase text-muted-foreground mb-1">Est. Cost</div>
+            <div className="text-2xl font-bold tabular-nums">
               {formatCurrency(project.estimatedCost)}
-             </div>
+            </div>
           </div>
           <div className="rounded-lg border bg-muted/40 p-3">
-             <div className="text-xs uppercase text-muted-foreground mb-1">Tool Success</div>
-             <div className="text-2xl font-bold tabular-nums">
-               {formatPercent(project.toolSuccessRate)}
-             </div>
-             <div className="text-xs text-muted-foreground mt-1">
-               {formatCompactNumber(project.toolCallCount)} calls
-             </div>
+            <div className="text-xs uppercase text-muted-foreground mb-1">Tool Success</div>
+            <div className="text-2xl font-bold tabular-nums">
+              {formatPercent(project.toolSuccessRate)}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {formatCompactNumber(project.toolCallCount)} calls
+            </div>
           </div>
         </CardContent>
       </Card>
