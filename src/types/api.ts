@@ -192,6 +192,12 @@ export type ToolCallSummary = {
   unknown: number
   avgDurationMs: number
   successRate: number
+  prevTotal: number | null
+  prevOk: number | null
+  prevFailed: number | null
+  prevUnknown: number | null
+  prevAvgDurationMs: number | null
+  prevSuccessRate: number | null
 }
 
 export type ToolCallListItem = {

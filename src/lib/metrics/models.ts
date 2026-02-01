@@ -27,6 +27,9 @@ export interface ModelsListResult {
 }
 
 function toNumber(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined) {
+    return fallback
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -67,7 +70,7 @@ export function getModelsList(options: ModelsListOptions): ModelsListResult {
       FROM model_call
       ${whereSql}
       GROUP BY model
-      ORDER BY total_tokens DESC
+      ORDER BY total_tokens DESC, call_count DESC
       LIMIT ? OFFSET ?`
     )
     .all(...params, options.pagination.limit, options.pagination.offset) as Record<

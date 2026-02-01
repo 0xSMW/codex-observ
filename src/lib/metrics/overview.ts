@@ -36,6 +36,9 @@ export interface OverviewResponse {
 }
 
 function toNumber(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined) {
+    return fallback
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -125,7 +128,7 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
     .prepare(
       `SELECT
         COUNT(*) AS tool_calls,
-        SUM(CASE WHEN status = 'ok' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_calls,
+        SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_calls,
         COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`

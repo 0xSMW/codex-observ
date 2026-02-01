@@ -79,7 +79,10 @@ export function getActivity(range: DateRange): ActivityResult {
         tokenTotal: toNumber(row.token_total),
       })
     }
-  } else {
+  }
+
+  // Fallback to raw tables if daily_activity is empty (even if table exists)
+  if (activityMap.size === 0) {
     if (hasMessage) {
       const where: string[] = []
       const params: unknown[] = []

@@ -42,6 +42,9 @@ export interface SessionsListResult {
 }
 
 function toNumber(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined) {
+    return fallback
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -137,7 +140,7 @@ export function getSessionsList(options: SessionsListOptions): SessionsListResul
     : '0'
 
   const toolOkSql = hasToolCall
-    ? "(SELECT COALESCE(SUM(CASE WHEN tc.status = 'ok' OR tc.exit_code = 0 THEN 1 ELSE 0 END), 0) FROM tool_call tc WHERE tc.session_id = s.id)"
+    ? "(SELECT COALESCE(SUM(CASE WHEN tc.status = 'ok' OR tc.status = 'unknown' OR tc.exit_code = 0 THEN 1 ELSE 0 END), 0) FROM tool_call tc WHERE tc.session_id = s.id)"
     : '0'
 
   const firstModelSql = hasModelCall

@@ -27,31 +27,55 @@ export default function ToolsPage() {
         {
           label: 'Success rate',
           value: summary.successRate,
-          change: 0,
-          trend: 'neutral' as const,
+          change: summary.prevSuccessRate !== null && summary.prevSuccessRate > 0 
+            ? (summary.successRate - summary.prevSuccessRate) / summary.prevSuccessRate 
+            : 0,
+          trend: (summary.successRate - (summary.prevSuccessRate ?? summary.successRate)) > 0 
+            ? 'up' as const 
+            : (summary.successRate - (summary.prevSuccessRate ?? summary.successRate)) < 0 
+              ? 'down' as const 
+              : 'neutral' as const,
           icon: <CheckCircle2 className="h-4 w-4" />,
           isPercent: true,
         },
         {
           label: 'Avg duration',
           value: summary.avgDurationMs,
-          change: 0,
-          trend: 'neutral' as const,
+          change: summary.prevAvgDurationMs !== null && summary.prevAvgDurationMs > 0
+            ? (summary.avgDurationMs - summary.prevAvgDurationMs) / summary.prevAvgDurationMs
+            : 0,
+          trend: (summary.avgDurationMs - (summary.prevAvgDurationMs ?? summary.avgDurationMs)) > 0
+            ? 'up' as const
+            : (summary.avgDurationMs - (summary.prevAvgDurationMs ?? summary.avgDurationMs)) < 0
+              ? 'down' as const
+              : 'neutral' as const,
           icon: <Timer className="h-4 w-4" />,
           formatValue: formatDuration,
         },
         {
           label: 'Total calls',
           value: summary.total,
-          change: 0,
-          trend: 'neutral' as const,
+          change: summary.prevTotal !== null && summary.prevTotal > 0
+            ? (summary.total - summary.prevTotal) / summary.prevTotal
+            : 0,
+          trend: (summary.total - (summary.prevTotal ?? summary.total)) > 0
+            ? 'up' as const
+            : (summary.total - (summary.prevTotal ?? summary.total)) < 0
+              ? 'down' as const
+              : 'neutral' as const,
           icon: <TerminalSquare className="h-4 w-4" />,
         },
         {
           label: 'Failures',
           value: summary.failed,
-          change: 0,
-          trend: 'neutral' as const,
+          change: summary.prevFailed !== null && summary.prevFailed > 0
+            ? (summary.failed - summary.prevFailed) / summary.prevFailed
+            : 0,
+          trend: (summary.failed - (summary.prevFailed ?? summary.failed)) > 0
+            ? 'up' as const
+            : (summary.failed - (summary.prevFailed ?? summary.failed)) < 0
+              ? 'down' as const
+              : 'neutral' as const,
           icon: <AlertTriangle className="h-4 w-4" />,
         },
       ]
