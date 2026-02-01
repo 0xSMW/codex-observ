@@ -3,8 +3,18 @@ import { jsonError, jsonOk } from '@/lib/metrics/http'
 import { paginationToResponse, parsePagination } from '@/lib/metrics/pagination'
 import { getSessionDetail } from '@/lib/metrics/session-detail'
 
-export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
-  const params = await props.params
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  let id: string
+  try {
+    const params = await context.params
+    id = typeof params?.id === 'string' ? params.id.trim() : ''
+  } catch (e) {
+    console.error('sessions:detail params failed', e)
+    return jsonError('Invalid request', 'invalid_query', 400)
+  }
+  if (!id) {
+    return jsonError('Missing session id', 'invalid_query', 400)
+  }
   try {
     const url = new URL(request.url)
     const { range, errors: rangeErrors } = getDateRange(url.searchParams)
@@ -36,7 +46,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     }
 
     const result = getSessionDetail(
-      params.id,
+      id,
       range,
       messagePagination.pagination,
       modelPagination.pagination,
