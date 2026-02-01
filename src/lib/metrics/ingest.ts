@@ -44,6 +44,21 @@ function toNumber(value: unknown, fallback = 0): number {
   return fallback
 }
 
+/** Returns the Unix timestamp (ms) when the database was last synced from source files, or null if never. */
+export function getLastSyncTime(): number | null {
+  const db = getDatabase()
+  if (!tableExists(db, 'ingest_state')) {
+    return null
+  }
+  const row = db.prepare('SELECT MAX(updated_at) AS last_updated_at FROM ingest_state').get() as
+    | Record<string, unknown>
+    | undefined
+  const val = row?.last_updated_at
+  if (val === null || val === undefined) return null
+  const n = typeof val === 'number' ? val : Number(val)
+  return Number.isFinite(n) ? n : null
+}
+
 export function getIngestState(options: IngestListOptions): IngestListResult {
   const db = getDatabase()
   if (!tableExists(db, 'ingest_state')) {
