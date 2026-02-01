@@ -29,7 +29,7 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="left" className="w-72 sm:w-80">
               <SheetHeader>
-                <SheetTitle>Codex Observ</SheetTitle>
+                <SheetTitle>Codex Observe</SheetTitle>
               </SheetHeader>
               <nav className="mt-4 space-y-1">
                 {NAV_ITEMS.map((item) => (
@@ -64,9 +64,13 @@ export function Header() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden md:block">
-            <DateRangePicker />
-          </div>
+          {pathname !== '/activity' &&
+            pathname !== '/models' &&
+            !pathname.startsWith('/sessions/') && (
+              <div className="hidden md:block">
+                <DateRangePicker />
+              </div>
+            )}
           <ThemeToggle />
         </div>
       </div>
