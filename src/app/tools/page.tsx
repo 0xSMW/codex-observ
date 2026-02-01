@@ -116,8 +116,10 @@ export default function ToolsPage() {
               <TableRow>
                 <TableHead className="w-32">Tool</TableHead>
                 <TableHead className="min-w-0">Command</TableHead>
+                <TableHead className="text-right w-16">Exit</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
                 <TableHead className="text-right">Status</TableHead>
+                <TableHead className="max-w-[160px]">Error</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,16 +132,25 @@ export default function ToolsPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
+                    {call.exitCode !== null ? call.exitCode : '—'}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
                   <TableCell className="text-right">
                     <StatusBadge status={call.status} />
                   </TableCell>
+                  <TableCell
+                    className="max-w-[160px] truncate text-xs text-muted-foreground"
+                    title={call.error ?? undefined}
+                  >
+                    {call.error ?? '—'}
+                  </TableCell>
                 </TableRow>
               ))}
               {data.toolCalls.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
                     No tool calls recorded.
                   </TableCell>
                 </TableRow>
