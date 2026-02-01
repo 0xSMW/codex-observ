@@ -2,16 +2,16 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  FolderGit2, 
-  MessageSquare, 
-  Cpu, 
-  DollarSign, 
-  ArrowUpDown, 
-  ArrowUp, 
-  ArrowDown 
+import {
+  ChevronLeft,
+  ChevronRight,
+  FolderGit2,
+  MessageSquare,
+  Cpu,
+  DollarSign,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
@@ -117,9 +117,7 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {data && data.projects.length > 0 && (
-         <ProjectsChart projects={data.projects} />
-      )}
+      {data && data.projects.length > 0 && <ProjectsChart projects={data.projects} />}
 
       {isLoading && !data && <TableSkeleton rows={8} />}
 
@@ -140,25 +138,41 @@ export default function ProjectsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>
-                  <Button variant="ghost" className="p-0 hover:bg-transparent" onClick={() => handleSort('name')}>
+                  <Button
+                    variant="ghost"
+                    className="p-0 hover:bg-transparent"
+                    onClick={() => handleSort('name')}
+                  >
                     Project <SortIcon keyName="name" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">
-                   <Button variant="ghost" className="p-0 hover:bg-transparent ml-auto" onClick={() => handleSort('sessionCount')}>
+                  <Button
+                    variant="ghost"
+                    className="p-0 hover:bg-transparent ml-auto"
+                    onClick={() => handleSort('sessionCount')}
+                  >
                     Sessions <SortIcon keyName="sessionCount" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">Tool calls</TableHead>
                 <TableHead className="text-right">
-                  <Button variant="ghost" className="p-0 hover:bg-transparent ml-auto" onClick={() => handleSort('totalTokens')}>
+                  <Button
+                    variant="ghost"
+                    className="p-0 hover:bg-transparent ml-auto"
+                    onClick={() => handleSort('totalTokens')}
+                  >
                     Tokens <SortIcon keyName="totalTokens" />
                   </Button>
                 </TableHead>
                 <TableHead className="text-right">Cache hit</TableHead>
                 <TableHead className="text-right">Est. Cost</TableHead>
                 <TableHead className="text-right">
-                   <Button variant="ghost" className="p-0 hover:bg-transparent ml-auto" onClick={() => handleSort('lastSeen')}>
+                  <Button
+                    variant="ghost"
+                    className="p-0 hover:bg-transparent ml-auto"
+                    onClick={() => handleSort('lastSeen')}
+                  >
                     Last Seen <SortIcon keyName="lastSeen" />
                   </Button>
                 </TableHead>
@@ -168,11 +182,17 @@ export default function ProjectsPage() {
               {data.projects.map((project) => (
                 <TableRow key={project.id} className="hover:bg-muted/40">
                   <TableCell className="font-medium">
-                    <Link href={`/projects/${project.id}`} className="text-primary hover:underline block">
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="text-primary hover:underline block"
+                    >
                       {project.name}
                     </Link>
                     {project.rootPath && (
-                      <div className="text-xs font-normal text-muted-foreground truncate max-w-[200px]" title={project.rootPath}>
+                      <div
+                        className="text-xs font-normal text-muted-foreground truncate max-w-[200px]"
+                        title={project.rootPath}
+                      >
                         {project.rootPath}
                       </div>
                     )}
@@ -201,7 +221,7 @@ export default function ProjectsPage() {
                     {formatCurrency(project.estimatedCost)}
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground whitespace-nowrap">
-                     {project.lastSeenTs ? new Date(project.lastSeenTs).toLocaleDateString() : '—'}
+                    {project.lastSeenTs ? new Date(project.lastSeenTs).toLocaleDateString() : '—'}
                   </TableCell>
                 </TableRow>
               ))}
