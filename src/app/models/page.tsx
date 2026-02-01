@@ -17,7 +17,13 @@ import { TableSkeleton } from '@/components/shared/loading-skeleton'
 import { KPIStatCard } from '@/components/shared/kpi-card'
 import { useModels } from '@/hooks/use-models'
 import { useProviders } from '@/hooks/use-providers'
-import { formatCompactNumber, formatCost, formatDuration, formatPercent, formatCurrency } from '@/lib/constants'
+import {
+  formatCompactNumber,
+  formatCost,
+  formatDuration,
+  formatPercent,
+  formatCurrency,
+} from '@/lib/constants'
 import { ModelsCostChart, ModelsTokenChart } from '@/components/models/models-charts'
 
 export default function ModelsPage() {
@@ -46,7 +52,7 @@ export default function ModelsPage() {
       <TabsContent value="models" className="space-y-6">
         {aggregates && (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-             <KPIStatCard
+            <KPIStatCard
               title="Total Calls"
               value={formatCompactNumber(aggregates.totalCalls)}
               icon={<MessageSquare className="h-4 w-4 text-muted-foreground" />}
@@ -68,7 +74,7 @@ export default function ModelsPage() {
             />
           </div>
         )}
-        
+
         {modelsData && modelsData.models.length > 0 && (
           <div className="grid gap-6 md:grid-cols-2">
             <ModelsCostChart models={modelsData.models} />
@@ -112,8 +118,10 @@ export default function ModelsPage() {
                       <TableCell className="text-right tabular-nums">
                         {formatCompactNumber(model.tokens.total)}
                       </TableCell>
-                       <TableCell className="text-right tabular-nums text-muted-foreground">
-                        {model.tokens.reasoning > 0 ? formatCompactNumber(model.tokens.reasoning) : '—'}
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {model.tokens.reasoning > 0
+                          ? formatCompactNumber(model.tokens.reasoning)
+                          : '—'}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {formatCost(model.estimatedCost)}
@@ -185,7 +193,7 @@ export default function ModelsPage() {
                       <TableCell className="text-right tabular-nums">
                         {formatPercent(provider.tokens.cacheHitRate)}
                       </TableCell>
-                       <TableCell className="text-right tabular-nums">
+                      <TableCell className="text-right tabular-nums">
                         {formatDuration(provider.avgModelDurationMs)}
                       </TableCell>
                     </TableRow>
