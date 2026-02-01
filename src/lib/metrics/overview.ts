@@ -126,7 +126,7 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
           `SELECT
         COUNT(*) AS tool_calls,
         SUM(CASE WHEN status = 'ok' OR status = 'unknown' OR exit_code = 0 THEN 1 ELSE 0 END) AS ok_calls,
-        AVG(COALESCE(duration_ms, end_ts - start_ts)) AS avg_duration_ms
+        COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
       FROM tool_call
       ${whereSql}`
         )
