@@ -61,19 +61,15 @@ export default function ProjectDetailPage() {
   const { data, error, isLoading, refresh } = useApiData<ProjectDetailResponse>(url)
 
   useEffect(() => {
-    if (!data?.project) {
-      setTitle(null)
-      setDescription(null)
-      return
-    }
-    const title = formatGitRemoteDisplay(data.project.gitRemote) ?? data.project.name
-    setTitle(title)
+    if (!data?.project) return
+    const displayTitle = formatGitRemoteDisplay(data.project.gitRemote) ?? data.project.name
+    setTitle(displayTitle)
     setDescription('Project detail')
     return () => {
       setTitle(null)
       setDescription(null)
     }
-  }, [data?.project?.gitRemote, data?.project?.name, setTitle, setDescription])
+  }, [data?.project, data?.project?.gitRemote, data?.project?.name, setTitle, setDescription])
 
   if (!id) {
     return (
