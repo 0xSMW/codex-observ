@@ -80,7 +80,9 @@ export function parseResponseItem(json: unknown, context: ParseContext): Message
   const item =
     obj.item && typeof obj.item === 'object' ? (obj.item as Record<string, unknown>) : obj
 
-  const role = normalizeRole(coerceString(item.role ?? obj.role))
+  const payload = obj.payload as Record<string, unknown> | undefined
+
+  const role = normalizeRole(coerceString(item.role ?? obj.role ?? payload?.role))
   if (!role) {
     return null
   }
@@ -96,7 +98,14 @@ export function parseResponseItem(json: unknown, context: ParseContext): Message
     process.env.CODEX_OBSERV_STORE_CONTENT === '1' ||
     process.env.CODEX_OBSERV_STORE_CONTENT === 'true'
 
-  const content = shouldStoreContent ? extractContent(item.content ?? obj.content) : null
+  const messageContent =
+    item.content ??
+    obj.content ??
+    payload?.content ??
+    (item.message as { content?: unknown } | undefined)?.content ??
+    (obj.message as { content?: unknown } | undefined)?.content
+
+  const content = shouldStoreContent ? extractContent(messageContent) : null
 
   const payloadForDedup = {
     sessionId,
