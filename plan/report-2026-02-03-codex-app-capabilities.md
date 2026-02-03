@@ -145,7 +145,7 @@ Metrics API outline.
 - `GET /api/worktrees/events` and `GET /api/automations/events` returning recent event rows for tables.
 
 UI outline.
-- New top-level nav item: `Worktrees` and `Automations` or a combined `Operations` page with tabs.
+- New top-level nav item: `Worktrees` and `Automations` 
 - Worktrees page layout: row of `KpiCard` components, `ChartCard` for created vs deleted, `ChartCard` for active worktrees, and a recent events table with filters.
 - Automations page layout: row of `KpiCard` components, `ChartCard` for queued/completed/failed, and a recent events table with filters.
 - Shared UX patterns: use existing shared components (`ChartCard`, `KpiCard`, `ErrorState`, loading skeletons), `space-y-6` layout spacing, and explicit loading and error states.
