@@ -1,9 +1,11 @@
 # Filtering, Search, Grouping Review
 
 ## Executive Summary
+
 This review maps filtering, search, and grouping behavior across the UI and data layer, and highlights cross-screen inconsistencies in components, spacing, and loading/error handling. UI filtering is concentrated on Sessions, Projects, and Tools; other screens (Models, Trends, Activity, Project Detail) are primarily read-only aggregations with no interactive filtering controls. The data layer exposes more filters than the UI uses, especially for Sessions and Tool Calls. The Projects UI wires up sort state and sends `sortBy`/`sortOrder` in the query string, but the API route ignores these parameters even though the data layer supports them. Grouping is implemented in multiple places (projects merged across worktrees, tool-call breakdowns by tool/error, activity grouped by date, model/provider grouping), with UI exposure varying by screen. Error and loading handling differs across pages: some use `ErrorState` + skeletons, others use inline table rows or card messages for empty/not-found states. UI filter layout varies as well: Sessions and Projects use a filter card, while Tools embeds search in the table header. These inconsistencies are all observable in current code and do not infer future changes.
 
 ## Scope Reviewed
+
 - `src/app/sessions/page.tsx`
 - `src/components/sessions/session-filters.tsx`
 - `src/app/tools/page.tsx`
@@ -30,8 +32,10 @@ This review maps filtering, search, and grouping behavior across the UI and data
 - `src/lib/metrics/activity.ts`
 
 ## Current Behavior Map
+
 ### Entry points
-- Sessions list with filters: `src/app/sessions/page.tsx` (stateful filters + pagination). 
+
+- Sessions list with filters: `src/app/sessions/page.tsx` (stateful filters + pagination).
 - Tools list with search + KPIs + breakdown charts: `src/app/tools/page.tsx`.
 - Projects list with search + sortable columns: `src/app/projects/page.tsx` and `src/app/projects/columns.tsx`.
 - Project detail: `src/app/projects/[id]/page.tsx`.
@@ -39,19 +43,23 @@ This review maps filtering, search, and grouping behavior across the UI and data
 - Trends and Activity dashboards: `src/app/trends/page.tsx`, `src/app/activity/page.tsx`, `src/app/page.tsx`.
 
 ### State/data flow
+
 - UI pages build query params via hooks (`useSessions`, `useProjects`, `useToolCalls`) and call Next.js API routes.
 - API routes parse filters and pagination and call data-layer query functions (e.g., `getSessionsList`, `getProjectsList`, `getToolCallsList`).
 - Data-layer modules query the local database via `getDatabase` and apply filters, grouping, and aggregations.
 
 ### External dependencies
+
 - Local database tables: `session`, `model_call`, `tool_call`, `project`, `project_ref`, `daily_activity` (presence checked via `tableExists`).
 - Pricing data for cost calculations: `getPricingSync`, `getPricingForModel`.
 
 ### Error handling/cancellation
-- Pages generally show `ErrorState` only when `error && !data`; they render skeletons during initial loading. 
+
+- Pages generally show `ErrorState` only when `error && !data`; they render skeletons during initial loading.
 - Some screens use inline empty rows or card messages instead of `EmptyState` or `ErrorState` for not-found/empty cases.
 
 ## Key Findings (ranked)
+
 1. **Projects sorting is wired in the UI and hook but ignored by the API route**
    - Locations:
      - UI sort state + query includes `sortBy`/`sortOrder`: `src/app/projects/page.tsx:27-38,45-55`.
@@ -98,21 +106,25 @@ This review maps filtering, search, and grouping behavior across the UI and data
    - Relevance: Explicit inconsistency across screens in loading and error/empty handling.
 
 ## Candidate Change Points (not an implementation plan)
+
 - Align Projects sorting across UI, API, and data-layer (`src/app/projects/page.tsx`, `src/hooks/use-projects.ts`, `src/app/api/projects/route.ts`, `src/lib/metrics/projects.ts`). Behavior must remain identical.
 - Decide whether to expose additional API filters in UI (Sessions/Tool Calls) or remove unused query params (`src/app/sessions/page.tsx`, `src/components/sessions/session-filters.tsx`, `src/app/tools/page.tsx`, `src/app/api/sessions/route.ts`, `src/app/api/tool-calls/route.ts`). Behavior must remain identical.
 - Standardize filter/search layout (dedicated filter card vs table header search) and empty/error handling patterns across screens (`src/app/sessions/page.tsx`, `src/app/tools/page.tsx`, `src/app/projects/page.tsx`, `src/app/projects/[id]/page.tsx`, `src/app/models/page.tsx`). Behavior must remain identical.
 
 ## Risks and Guardrails
+
 - Any changes to API query handling must preserve existing cache keys and pagination behavior (`src/app/api/projects/route.ts`, `src/lib/performance/cache`).
 - Grouping logic in projects (merge key and canonical name grouping) is core to the project rollups; avoid altering grouping semantics without explicit intent (`src/lib/metrics/projects.ts:8-16,452-478`).
 - Error handling currently relies on `ErrorState` only when `error && !data`—adjustments should preserve this to avoid UI flicker during refreshes.
 
 ## Open Questions/Assumptions
+
 - Assumed that UI should reflect all available API filters; if not, confirm which filters are intentionally hidden.
 - Assumed that Projects sorting is intended to be server-driven (due to `manualPagination`); if client-side sort is intended, confirm.
 - Assumed that inconsistent empty/error handling is not intentional per page.
 
 ## References (paths only)
+
 - `src/app/sessions/page.tsx`
 - `src/components/sessions/session-filters.tsx`
 - `src/components/sessions/sessions-table.tsx`
