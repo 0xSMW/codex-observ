@@ -24,37 +24,39 @@ codex-observ state/data flow: Ingested logs are parsed into sessions, messages, 
 codex-observ error handling/cancellation: Watcher publishes error events and captures ingest errors; ingest status tracks running/idle state. Locations: `src/lib/watcher/index.ts:70-187`, `src/lib/metrics/ingest.ts:124-160`.
 
 **Key Findings (Ranked)**
+
 1. Desktop app telemetry and log pipeline are richer than CLI logs.
-Location(s) with line numbers: `/tmp/codex-package.json:59-77`, `/tmp/codex-worker.js:303`, `/tmp/codex-main.js:525`, `/tmp/codex-preload.js:1`.
-Observation: The desktop app initializes Sentry and Datadog log sink, tags a `codex_app_session_id`, and writes to a file-based logger with log rotation. Preload exposes Sentry init options to the renderer. This implies app-level telemetry and diagnostics beyond CLI output.
-Relevance to Y: These signals are not represented in codex-observ today, suggesting a new reporting category for desktop app stability and usage.
+   Location(s) with line numbers: `/tmp/codex-package.json:59-77`, `/tmp/codex-worker.js:303`, `/tmp/codex-main.js:525`, `/tmp/codex-preload.js:1`.
+   Observation: The desktop app initializes Sentry and Datadog log sink, tags a `codex_app_session_id`, and writes to a file-based logger with log rotation. Preload exposes Sentry init options to the renderer. This implies app-level telemetry and diagnostics beyond CLI output.
+   Relevance to Y: These signals are not represented in codex-observ today, suggesting a new reporting category for desktop app stability and usage.
 
 2. The desktop app operates a full git/worktree management layer via worker RPC.
-Location(s) with line numbers: `/tmp/codex-worker.js:274`, `/tmp/codex-webview-index.js:2889`.
-Observation: The worker supports git status, branch metadata, worktree create/delete, apply patch, and commit flows; the renderer subscribes to worktree events and triggers cleanup.
-Relevance to Y: Worktree lifecycle and git activity are high-value reporting candidates not currently captured by codex-observ.
+   Location(s) with line numbers: `/tmp/codex-worker.js:274`, `/tmp/codex-webview-index.js:2889`.
+   Observation: The worker supports git status, branch metadata, worktree create/delete, apply patch, and commit flows; the renderer subscribes to worktree events and triggers cleanup.
+   Relevance to Y: Worktree lifecycle and git activity are high-value reporting candidates not currently captured by codex-observ.
 
 3. Renderer emits explicit product events for app-session lifecycle.
-Location(s) with line numbers: `/tmp/codex-webview-index.js:2889`.
-Observation: `codex_app_window_opened` and `codex_app_window_closed` events are emitted, and the renderer includes telemetry and message-bus handlers.
-Relevance to Y: App-session counts and window lifecycle metrics could become a new reporting stream aligned with desktop usage.
+   Location(s) with line numbers: `/tmp/codex-webview-index.js:2889`.
+   Observation: `codex_app_window_opened` and `codex_app_window_closed` events are emitted, and the renderer includes telemetry and message-bus handlers.
+   Relevance to Y: App-session counts and window lifecycle metrics could become a new reporting stream aligned with desktop usage.
 
 4. Deep links expose distinct UX surfaces (settings, skills, automations, threads).
-Location(s) with line numbers: `/tmp/codex-main.js:525`.
-Observation: The main process parses `codex://` deep links and routes to settings, skills, automations, and threads.
-Relevance to Y: These UX surfaces could be mapped to reporting segments (e.g., automation usage or skills usage) if event streams are available.
+   Location(s) with line numbers: `/tmp/codex-main.js:525`.
+   Observation: The main process parses `codex://` deep links and routes to settings, skills, automations, and threads.
+   Relevance to Y: These UX surfaces could be mapped to reporting segments (e.g., automation usage or skills usage) if event streams are available.
 
 5. The desktop app embeds local persistence and terminal integration.
-Location(s) with line numbers: `/tmp/codex-package.json:63-76`.
-Observation: Dependencies include `better-sqlite3`, `node-pty`, and `smol-toml`, indicating local DB state, terminal sessions, and TOML-based config.
-Relevance to Y: These components imply additional local data sources that could inform reporting (e.g., terminal tool usage, config-driven behavior).
+   Location(s) with line numbers: `/tmp/codex-package.json:63-76`.
+   Observation: Dependencies include `better-sqlite3`, `node-pty`, and `smol-toml`, indicating local DB state, terminal sessions, and TOML-based config.
+   Relevance to Y: These components imply additional local data sources that could inform reporting (e.g., terminal tool usage, config-driven behavior).
 
 6. codex-observ already provides robust CLI-derived KPIs and tool-call analytics.
-Location(s) with line numbers: `src/lib/db/schema.sql:37-140`, `src/lib/metrics/overview.ts:26-155`, `src/lib/metrics/activity.ts:48-179`, `src/lib/metrics/tool-calls.ts:155-199`, `src/lib/db/queries/tool-call-events.ts:3-44`.
-Observation: The current system ingests CLI logs into session/message/model_call/tool_call/tool_call_event tables and computes KPIs (token totals, tool success rate, duration averages, cost estimates) plus activity series.
-Relevance to Y: New reporting should complement, not duplicate, these existing analytics.
+   Location(s) with line numbers: `src/lib/db/schema.sql:37-140`, `src/lib/metrics/overview.ts:26-155`, `src/lib/metrics/activity.ts:48-179`, `src/lib/metrics/tool-calls.ts:155-199`, `src/lib/db/queries/tool-call-events.ts:3-44`.
+   Observation: The current system ingests CLI logs into session/message/model_call/tool_call/tool_call_event tables and computes KPIs (token totals, tool success rate, duration averages, cost estimates) plus activity series.
+   Relevance to Y: New reporting should complement, not duplicate, these existing analytics.
 
 **Candidate Change Points (behavior must remain identical)**
+
 1. Add a desktop-app telemetry ingestion path to capture app-session events (window opened/closed, view focus) as a new event stream, parallel to existing model/tool events. Candidate change areas: `src/lib/ingestion` (new parser), `src/lib/db/schema.sql` (new table or extend event types), `src/lib/metrics` (new KPI series), and `src/app` for a UI surface.
 
 2. Add automation lifecycle reporting (runs queued/completed/archived) based on desktop app automation signals. Candidate change areas: `src/lib/ingestion` (new parser for automation run signals), `src/lib/metrics` (automation summaries), and a new dashboard section.
@@ -91,11 +93,13 @@ src/lib/watcher/index.ts
 **Addendum A: Codex.app Log Formats And Parser Spec**
 
 Observed on-disk locations (macOS).
+
 - Base path: `~/Library/Logs/com.openai.codex/`.
 - Date partitioning: `YYYY/MM/DD/` subfolders under the base path.
 - Example files observed on 2026-02-03: `~/Library/Logs/com.openai.codex/2026/02/03/codex-desktop-c8b6c17b-21a3-4d40-b7db-2da0e9bbe9ed-2049-t0-i1-013627-0.log` and `~/Library/Logs/com.openai.codex/2026/02/03/codex-desktop-c8b6c17b-21a3-4d40-b7db-2da0e9bbe9ed-2049-t1-i1-013629-0.log`.
 
 Filename pattern (inferred from file names and bundle code).
+
 - Pattern: `codex-desktop-<app_session_id>-<process_id>-t<thread_id>-i<instance_id>-<HHMMSS>-<segment>.log`.
 - Example: `codex-desktop-c8b6c17b-21a3-4d40-b7db-2da0e9bbe9ed-2049-t0-i1-013627-0.log`.
 - Field: `app_session_id` is a UUID-like string.
@@ -106,6 +110,7 @@ Filename pattern (inferred from file names and bundle code).
 - Field: `segment` is a numeric rolling index.
 
 Record format (observed).
+
 - Each record begins with an ISO-8601 UTC timestamp with millisecond precision and `Z` suffix.
 - Format: `<timestamp> <level> [<component>] <message>` where `[<component>]` is optional.
 - Example: `2026-02-03T01:36:27.383Z info Launching app {`.
@@ -115,6 +120,7 @@ Record format (observed).
 - Structured objects are printed via Node’s formatter and are not strict JSON. Example values use single quotes and `undefined` may appear.
 
 Proposed parser spec (ingestion).
+
 - File discovery: enumerate `~/Library/Logs/com.openai.codex/YYYY/MM/DD/*.log` and parse filename tokens into metadata fields.
 - Record delimiting: a new record starts when a line matches `^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z\\s`; non-matching lines are appended as literal `\\n` continuations.
 - Record parsing: extract `timestamp`, `level`, optional `component` in the first bracket token, and `message` as the remainder. If a trailing object block is detected, capture it as `payload_text` but do not JSON-parse it.
@@ -123,6 +129,7 @@ Proposed parser spec (ingestion).
 - Redaction guardrails: redact path prefixes, email-like strings, and workspace-specific identifiers from `message` and `payload_text` at ingest time.
 
 Concrete log types visible in the sample logs (useful for downstream metrics).
+
 - App lifecycle: `Launching app { ... }`, Sparkle update initialization, CLI connection initialized.
 - Git activity: `[git] encountered an error running git command` and `[git-repo-watcher] Starting git repo watcher for <path>`.
 - Skills and app server: `[electron-message-handler] Skills/list request` and `Received app server result: <uuid> object(keys=<n>)`.
@@ -133,6 +140,7 @@ Concrete log types visible in the sample logs (useful for downstream metrics).
 **Addendum B: Metrics Schema And UI Outline For Worktree/Automation Reporting**
 
 Metrics schema proposal (SQLite).
+
 - New table: `desktop_log_event` as described in Addendum A.
 - New table: `worktree_event` with columns `id`, `ts`, `action`, `worktree_path`, `repo_root`, `branch`, `status`, `error`, `app_session_id`, `source_log_id`, `dedup_key`.
 - New table: `automation_event` with columns `id`, `ts`, `action`, `thread_id`, `status`, `error`, `app_session_id`, `source_log_id`, `dedup_key`.
@@ -140,21 +148,25 @@ Metrics schema proposal (SQLite).
 - New table: `automation_daily` with columns `date`, `runs_queued`, `runs_completed`, `runs_failed`, `avg_duration_ms`, `backlog_peak`.
 
 Metrics API outline.
+
 - `GET /api/worktrees` returning KPI summary and daily series for created, deleted, errors, active, and avg create duration.
 - `GET /api/automations` returning KPI summary and daily series for queued, completed, failed, avg duration, and backlog peak.
 - `GET /api/worktrees/events` and `GET /api/automations/events` returning recent event rows for tables.
 
 UI outline.
-- New top-level nav item: `Worktrees` and `Automations` 
+
+- New top-level nav item: `Worktrees` and `Automations`
 - Worktrees page layout: row of `KpiCard` components, `ChartCard` for created vs deleted, `ChartCard` for active worktrees, and a recent events table with filters.
 - Automations page layout: row of `KpiCard` components, `ChartCard` for queued/completed/failed, and a recent events table with filters.
 - Shared UX patterns: use existing shared components (`ChartCard`, `KpiCard`, `ErrorState`, loading skeletons), `space-y-6` layout spacing, and explicit loading and error states.
 
 Data derivation notes.
+
 - `active_count` can be computed as a running total of `created - deleted` per day, floored at 0.
 - Failure rate is `failed / (completed + failed)` for automations, and `error_count / created` for worktrees.
 - Backlog peak is the maximum of `queued - completed` within the period.
 
 Guardrails.
+
 - Do not ingest log lines that include user prompt content or terminal output. Restrict to app lifecycle and worktree/automation operational logs.
 - If log coverage is insufficient for automations, gate UI behind a feature flag until event extraction is validated.
