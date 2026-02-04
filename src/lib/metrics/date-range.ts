@@ -121,9 +121,12 @@ export function getPreviousRange(range: DateRange): DateRange | null {
 /** Default range: last 30 days, aligned with DateRangeProvider. */
 export function getDefaultRange(): DateRange {
   const end = new Date()
-  end.setHours(0, 0, 0, 0)
+  end.setHours(23, 59, 59, 999)
   const endMs = end.getTime()
-  const startMs = endMs - 29 * 24 * 60 * 60 * 1000
+  const start = new Date(end)
+  start.setDate(start.getDate() - 29)
+  start.setHours(0, 0, 0, 0)
+  const startMs = start.getTime()
   return { startMs, endMs }
 }
 
