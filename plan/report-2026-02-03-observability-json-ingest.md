@@ -1,9 +1,11 @@
 # Observability JSON Ingest Research Report
 
 ## Executive Summary
+
 This codebase ingests observability data primarily from JSON Lines (`.jsonl`) files under the Codex home directory. Session JSONL files are discovered under `~/.codex/sessions` and processed line-by-line with incremental offsets, parsing each JSON object into session metadata, turn context, response messages, and token usage events that populate database tables. The ingestion entry point is `ingestInternal` in `src/lib/ingestion/index.ts`, which orchestrates discovery, incremental reading, parsing, and insertion, and persists ingest state offsets per file. The JSONL reader handles byte offsets, line-number tracking, and JSON parse errors. Parsing logic is split across dedicated parser modules that detect line type (`type`/`kind`/`event_type`/`eventType`) and extract key fields like `session_id`, timestamps, model/provider, token usage counts, and message roles/content. A watcher subsystem identifies relevant files (all `.jsonl`, plus `history.jsonl`) for ingest scheduling, but the ingest pipeline itself only discovers session files under `sessions/`. There is also log ingestion for `codex-tui.log`, which is not JSON but is parsed separately for tool-call observability.
 
 ## Scope Reviewed
+
 - `src/lib/ingestion/file-discovery.ts`
 - `src/lib/ingestion/index.ts`
 - `src/lib/ingestion/jsonl-reader.ts`
@@ -15,6 +17,7 @@ This codebase ingests observability data primarily from JSON Lines (`.jsonl`) fi
 - `src/lib/watcher/index.ts`
 
 ## Current Behavior Map
+
 - Entry points
   - `ingestAll`/`ingestIncremental` call `ingestInternal` to drive ingest from disk. `ingestInternal` discovers session JSONL files, reads incremental JSONL lines, parses them, and inserts records. `codex-tui.log` is also parsed after JSONL processing. Locations: `src/lib/ingestion/index.ts:112-334`.
   - The watcher marks `.jsonl` files and `history.jsonl` as relevant and queues ingest via an injectable handler, used for live updates. Locations: `src/lib/watcher/index.ts:91-165`, `src/lib/watcher/index.ts:293-294`.
@@ -33,6 +36,7 @@ This codebase ingests observability data primarily from JSON Lines (`.jsonl`) fi
   - File stat/read errors are captured per file with a synthetic line `0`. Locations: `src/lib/ingestion/index.ts:129-152`.
 
 ## Key Findings (ranked)
+
 1. **Session JSONL discovery is rooted at `~/.codex/sessions` and filters on `.jsonl`.**
    - Location(s): `src/lib/ingestion/file-discovery.ts:52-67`, `src/lib/ingestion/file-discovery.ts:31-47`.
    - Observation: The ingest pipeline only enumerates JSONL files inside the `sessions` folder and ignores other JSONL locations unless separately wired.
@@ -74,20 +78,24 @@ This codebase ingests observability data primarily from JSON Lines (`.jsonl`) fi
    - Relevance: If `history.jsonl` is expected to be ingested, it is not wired in the current ingest path.
 
 ## Candidate Change Points (behavior must remain identical)
+
 - JSONL discovery: `src/lib/ingestion/file-discovery.ts:20-67`
 - JSONL reader and parse error tracking: `src/lib/ingestion/jsonl-reader.ts:66-142`
 - Line-type detection and per-type parsing: `src/lib/ingestion/parsers/helpers.ts:24-67`, `src/lib/ingestion/parsers/*.ts`
 - Ingest orchestration and DB inserts: `src/lib/ingestion/index.ts:112-334`
 
 ## Risks and Guardrails
+
 - Offsets and line-number math are sensitive to file truncation; `readJsonlIncremental` resets when file size shrinks. Locations: `src/lib/ingestion/jsonl-reader.ts:71-83`.
 - Message content is gated by environment; downstream consumers should handle `null` content. Locations: `src/lib/ingestion/parsers/response-item.ts:97-109`.
 
 ## Open Questions/Assumptions
+
 - `history.jsonl` is treated as a relevant file by the watcher, but is not currently read by `ingestInternal`. If it is supposed to be ingested, an additional load path may exist elsewhere or is unimplemented.
 - This report assumes observability data comes from the Codex CLI `.codex` directory; no other JSON sources were found in the ingest pipeline.
 
 ## References
+
 - src/lib/ingestion/file-discovery.ts
 - src/lib/ingestion/index.ts
 - src/lib/ingestion/jsonl-reader.ts
