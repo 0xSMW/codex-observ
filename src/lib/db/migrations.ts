@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import type { DatabaseSync } from 'node:sqlite'
 
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 function loadSchemaSql(): string {
   const schemaPath = path.resolve(process.cwd(), 'src', 'lib', 'db', 'schema.sql')
@@ -60,6 +60,81 @@ function migrationFrom1To2(db: DatabaseSync): void {
   }
 }
 
+function migrationFrom2To3(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS desktop_log_event (
+      id TEXT PRIMARY KEY,
+      app_session_id TEXT NULL,
+      ts INTEGER NOT NULL,
+      level TEXT NULL,
+      component TEXT NULL,
+      message TEXT NULL,
+      payload_text TEXT NULL,
+      process_id INTEGER NULL,
+      thread_id INTEGER NULL,
+      instance_id INTEGER NULL,
+      segment_index INTEGER NULL,
+      file_path TEXT NOT NULL,
+      line_number INTEGER NOT NULL,
+      dedup_key TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_desktop_log_event_dedup_key ON desktop_log_event(dedup_key);
+    CREATE INDEX IF NOT EXISTS idx_desktop_log_event_ts ON desktop_log_event(ts);
+    CREATE INDEX IF NOT EXISTS idx_desktop_log_event_session ON desktop_log_event(app_session_id);
+
+    CREATE TABLE IF NOT EXISTS worktree_event (
+      id TEXT PRIMARY KEY,
+      ts INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      worktree_path TEXT NULL,
+      repo_root TEXT NULL,
+      branch TEXT NULL,
+      status TEXT NULL,
+      error TEXT NULL,
+      app_session_id TEXT NULL,
+      source_log_id TEXT NULL,
+      dedup_key TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_worktree_event_dedup_key ON worktree_event(dedup_key);
+    CREATE INDEX IF NOT EXISTS idx_worktree_event_ts ON worktree_event(ts);
+    CREATE INDEX IF NOT EXISTS idx_worktree_event_action ON worktree_event(action);
+
+    CREATE TABLE IF NOT EXISTS automation_event (
+      id TEXT PRIMARY KEY,
+      ts INTEGER NOT NULL,
+      action TEXT NOT NULL,
+      thread_id TEXT NULL,
+      status TEXT NULL,
+      error TEXT NULL,
+      app_session_id TEXT NULL,
+      source_log_id TEXT NULL,
+      dedup_key TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_event_dedup_key ON automation_event(dedup_key);
+    CREATE INDEX IF NOT EXISTS idx_automation_event_ts ON automation_event(ts);
+    CREATE INDEX IF NOT EXISTS idx_automation_event_action ON automation_event(action);
+
+    CREATE TABLE IF NOT EXISTS worktree_daily (
+      date TEXT PRIMARY KEY,
+      created_count INTEGER NOT NULL,
+      deleted_count INTEGER NOT NULL,
+      error_count INTEGER NOT NULL,
+      active_count INTEGER NOT NULL,
+      avg_create_duration_ms INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS automation_daily (
+      date TEXT PRIMARY KEY,
+      runs_queued INTEGER NOT NULL,
+      runs_completed INTEGER NOT NULL,
+      runs_failed INTEGER NOT NULL,
+      avg_duration_ms INTEGER NOT NULL,
+      backlog_peak INTEGER NOT NULL
+    );
+  `)
+}
+
 export function ensureMigrations(db: DatabaseSync): void {
   const row = db.prepare('PRAGMA user_version').get() as { user_version: number } | undefined
   let currentVersion = row?.user_version ?? 0
@@ -85,6 +160,10 @@ export function ensureMigrations(db: DatabaseSync): void {
     if (currentVersion === 1) {
       migrationFrom1To2(db)
       currentVersion = 2
+    }
+    if (currentVersion === 2) {
+      migrationFrom2To3(db)
+      currentVersion = 3
     }
   }
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
