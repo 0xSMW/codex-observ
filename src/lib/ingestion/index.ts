@@ -10,9 +10,15 @@ import { insertModelCall, type ModelCallRecord } from '../db/queries/model-calls
 import { upsertProject, upsertProjectRef } from '../db/queries/projects'
 import { insertSessionContext, type SessionContextRecord } from '../db/queries/session-context'
 import { insertToolCallEvents } from '../db/queries/tool-call-events'
+import { insertDesktopLogEvents } from '../db/queries/desktop-log-events'
+import { insertWorktreeEvents } from '../db/queries/worktree-events'
+import { insertAutomationEvents } from '../db/queries/automation-events'
 import { discoverSessionFiles } from './file-discovery'
+import { discoverDesktopLogFiles } from './desktop-log-discovery'
 import { readJsonlIncremental } from './jsonl-reader'
 import { parseLogFile } from './log-parser'
+import { parseDesktopLogFile } from './desktop-log-parser'
+import { inferArchivedWorktrees } from './worktree-archive'
 import { deriveProjectAndRef } from './project-id'
 import { generateDedupKey } from './dedup'
 import { parseSessionMeta } from './parsers/session-meta'
@@ -309,6 +315,85 @@ async function ingestInternal(
         error: error instanceof Error ? error.message : String(error),
       })
     }
+  }
+
+  const desktopLogFiles = await discoverDesktopLogFiles()
+  for (let index = 0; index < desktopLogFiles.length; index += 1) {
+    const filePath = desktopLogFiles[index]
+    let stat: fs.Stats | null = null
+
+    try {
+      stat = await fs.promises.stat(filePath)
+    } catch (error) {
+      errors.push({
+        file: filePath,
+        line: 0,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      continue
+    }
+
+    const previousState = incremental ? getIngestState(db, filePath) : null
+    const fromOffset = incremental && previousState ? previousState.byte_offset : 0
+
+    let logResult
+    try {
+      logResult = await parseDesktopLogFile(filePath, fromOffset)
+    } catch (error) {
+      errors.push({
+        file: filePath,
+        line: 0,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      continue
+    }
+
+    for (const parseError of logResult.errors) {
+      errors.push({
+        file: filePath,
+        line: parseError.line,
+        error: parseError.message,
+      })
+    }
+
+    if (logResult.events.length > 0) {
+      insertDesktopLogEvents(db, logResult.events)
+    }
+    if (logResult.worktreeEvents.length > 0) {
+      insertWorktreeEvents(db, logResult.worktreeEvents)
+    }
+    if (logResult.automationEvents.length > 0) {
+      insertAutomationEvents(db, logResult.automationEvents)
+    }
+
+    setIngestState(db, {
+      path: filePath,
+      byte_offset: logResult.newOffset,
+      mtime_ms: stat.mtimeMs,
+    })
+
+    filesProcessed += 1
+    linesIngested += logResult.events.length
+
+    if (options?.onProgress) {
+      options.onProgress({
+        file: filePath,
+        fileIndex: index + 1,
+        fileCount: desktopLogFiles.length,
+        linesRead: logResult.events.length,
+        newOffset: logResult.newOffset,
+      })
+    }
+  }
+
+  try {
+    inferArchivedWorktrees(db, codexHome)
+  } catch (error) {
+    errors.push({
+      file: 'worktree-inventory',
+      line: 0,
+      error: error instanceof Error ? error.message : String(error),
+    })
   }
 
   return {
