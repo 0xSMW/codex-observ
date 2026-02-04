@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useMemo, useState } from 'react'
-import { addDays, startOfDay, subDays } from 'date-fns'
+import { addDays, endOfDay, startOfDay, subDays } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 
 export type DateRangeContextValue = {
@@ -13,7 +13,28 @@ const DateRangeContext = createContext<DateRangeContextValue | undefined>(undefi
 
 const defaultRange: DateRange = {
   from: startOfDay(subDays(new Date(), 29)),
-  to: startOfDay(new Date()),
+  to: endOfDay(new Date()),
+}
+
+function normalizeRange(next: DateRange): DateRange {
+  const nextFrom = next?.from ? startOfDay(next.from) : undefined
+  const nextTo = next?.to ? endOfDay(next.to) : undefined
+
+  if (nextFrom && nextTo && nextFrom > nextTo) {
+    return {
+      from: startOfDay(next.to ?? nextFrom),
+      to: endOfDay(next.from ?? nextTo),
+    }
+  }
+
+  if (!nextFrom && nextTo) {
+    return {
+      from: startOfDay(addDays(nextTo, -29)),
+      to: nextTo,
+    }
+  }
+
+  return { from: nextFrom, to: nextTo }
 }
 
 export function DateRangeProvider({ children }: { children: React.ReactNode }) {
@@ -23,15 +44,7 @@ export function DateRangeProvider({ children }: { children: React.ReactNode }) {
     () => ({
       range,
       setRange: (next: DateRange) => {
-        if (next?.from && next?.to && next.from > next.to) {
-          setRange({ from: next.to, to: next.from })
-          return
-        }
-        if (!next?.from && next?.to) {
-          setRange({ from: addDays(next.to, -29), to: next.to })
-          return
-        }
-        setRange(next)
+        setRange(normalizeRange(next))
       },
     }),
     [range]
