@@ -8,9 +8,11 @@ import {
   Cpu,
   FolderGit2,
   Gauge,
+  GitBranch,
   MessageSquare,
   RefreshCw,
   TerminalSquare,
+  Workflow,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -31,21 +33,30 @@ import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/lib/constants'
 import { useLiveUpdates } from '@/hooks/use-live-updates'
 import { useSyncStatus } from '@/hooks/use-sync-status'
+import { useDesktopLogStatus } from '@/hooks/use-desktop-log-status'
 import { ThemeToggle } from '@/components/layout/theme-toggle'
 
 const iconMap = {
   Gauge,
   FolderGit2,
+  GitBranch,
   MessageSquare,
   TerminalSquare,
   Cpu,
   Calendar,
+  Workflow,
 }
 
 export function Sidebar() {
   const pathname = usePathname()
   const { status } = useLiveUpdates()
   const { lastSyncedAt, triggerSync, isSyncing } = useSyncStatus()
+  const { data: desktopLogStatus } = useDesktopLogStatus()
+
+  const hasDesktopLogs = desktopLogStatus?.hasLogs ?? false
+  const visibleNavItems = hasDesktopLogs
+    ? NAV_ITEMS
+    : NAV_ITEMS.filter((item) => item.href !== '/worktrees' && item.href !== '/automations')
 
   const lastSyncedDate = lastSyncedAt ? new Date(lastSyncedAt) : null
   const connectionLabel =
@@ -85,7 +96,7 @@ export function Sidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {NAV_ITEMS.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = iconMap[item.icon as keyof typeof iconMap]
               const active = pathname === item.href
               return (
