@@ -8,7 +8,8 @@ import { NAV_ITEMS } from '@/lib/constants'
 import { useHeaderTitle } from '@/components/layout/header-title-context'
 
 function getRouteFallback(pathname: string): { title: string; description?: string } | null {
-  if (/^\/projects\/[^/]+$/.test(pathname)) return { title: 'Project', description: 'Project detail' }
+  if (/^\/projects\/[^/]+$/.test(pathname))
+    return { title: 'Project', description: 'Project detail' }
   return null
 }
 
@@ -28,9 +29,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           <SidebarTrigger className="md:hidden" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {headerTitle}
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{headerTitle}</h1>
             {headerDescription && (
               <p className="text-sm text-muted-foreground">{headerDescription}</p>
             )}
