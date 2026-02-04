@@ -162,3 +162,77 @@ CREATE TABLE IF NOT EXISTS daily_activity (
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_activity_date ON daily_activity(date);
+
+CREATE TABLE IF NOT EXISTS desktop_log_event (
+  id TEXT PRIMARY KEY,
+  app_session_id TEXT NULL,
+  ts INTEGER NOT NULL,
+  level TEXT NULL,
+  component TEXT NULL,
+  message TEXT NULL,
+  payload_text TEXT NULL,
+  process_id INTEGER NULL,
+  thread_id INTEGER NULL,
+  instance_id INTEGER NULL,
+  segment_index INTEGER NULL,
+  file_path TEXT NOT NULL,
+  line_number INTEGER NOT NULL,
+  dedup_key TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_desktop_log_event_dedup_key ON desktop_log_event(dedup_key);
+CREATE INDEX IF NOT EXISTS idx_desktop_log_event_ts ON desktop_log_event(ts);
+CREATE INDEX IF NOT EXISTS idx_desktop_log_event_session ON desktop_log_event(app_session_id);
+
+CREATE TABLE IF NOT EXISTS worktree_event (
+  id TEXT PRIMARY KEY,
+  ts INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  worktree_path TEXT NULL,
+  repo_root TEXT NULL,
+  branch TEXT NULL,
+  status TEXT NULL,
+  error TEXT NULL,
+  app_session_id TEXT NULL,
+  source_log_id TEXT NULL,
+  dedup_key TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_worktree_event_dedup_key ON worktree_event(dedup_key);
+CREATE INDEX IF NOT EXISTS idx_worktree_event_ts ON worktree_event(ts);
+CREATE INDEX IF NOT EXISTS idx_worktree_event_action ON worktree_event(action);
+
+CREATE TABLE IF NOT EXISTS automation_event (
+  id TEXT PRIMARY KEY,
+  ts INTEGER NOT NULL,
+  action TEXT NOT NULL,
+  thread_id TEXT NULL,
+  status TEXT NULL,
+  error TEXT NULL,
+  app_session_id TEXT NULL,
+  source_log_id TEXT NULL,
+  dedup_key TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_automation_event_dedup_key ON automation_event(dedup_key);
+CREATE INDEX IF NOT EXISTS idx_automation_event_ts ON automation_event(ts);
+CREATE INDEX IF NOT EXISTS idx_automation_event_action ON automation_event(action);
+
+CREATE TABLE IF NOT EXISTS worktree_daily (
+  date TEXT PRIMARY KEY,
+  created_count INTEGER NOT NULL,
+  deleted_count INTEGER NOT NULL,
+  error_count INTEGER NOT NULL,
+  active_count INTEGER NOT NULL,
+  avg_create_duration_ms INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS automation_daily (
+  date TEXT PRIMARY KEY,
+  runs_queued INTEGER NOT NULL,
+  runs_completed INTEGER NOT NULL,
+  runs_failed INTEGER NOT NULL,
+  avg_duration_ms INTEGER NOT NULL,
+  backlog_peak INTEGER NOT NULL
+);
