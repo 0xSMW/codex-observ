@@ -1,9 +1,11 @@
 # Observability Expansion Spec & Findings
 
 ## Executive Summary
+
 Observability data is ingested from JSONL session files under the Codex home directory and from the CLI log, then normalized into session, message, model_call, tool_call, and related tables. The JSONL source stream carries session metadata (cwd, originator, CLI version, model provider, git branch/commit), turn-level model context, messages, and token-usage events with per-call durations and reasoning tokens, while the log parser captures tool call commands, exit status, durations, and I/O sizes. Many of these fields are stored but only partially surfaced in the UI: sessions list and tools list expose only a subset of available columns; advanced filters supported by the API are missing from the UI; and some data sets (session_context, tool_call_event) are not surfaced at all. There are also cross-screen inconsistencies in filtering controls and date-range usage; Projects sorting is wired in the UI but ignored by the API. This report maps current behavior and provides a detailed, non-implementation spec to expand the product by exposing existing data, aligning filters, and adding consistent observability views. Behavior must remain identical in ingestion and existing metrics calculations.
 
 ## Scope Reviewed
+
 - src/lib/ingestion/index.ts
 - src/lib/ingestion/file-discovery.ts
 - src/lib/ingestion/jsonl-reader.ts
@@ -49,28 +51,34 @@ Observability data is ingested from JSONL session files under the Codex home dir
 - src/hooks/use-sessions-medians.ts
 
 ## Current Behavior Map
+
 ### Entry points
+
 - Ingest entry points are `ingestAll` and `ingestIncremental`, which call `ingestInternal` to discover JSONL session files and parse them into DB records, then parse the CLI log for tool calls. Locations: src/lib/ingestion/index.ts:112-334.
 - JSONL discovery walks `~/.codex/sessions` and filters `.jsonl` files. Locations: src/lib/ingestion/file-discovery.ts:20-67.
 - The CLI log `~/.codex/log/codex-tui.log` is parsed into tool calls and tool-call events. Locations: src/lib/ingestion/index.ts:273-303 and src/lib/ingestion/log-parser.ts:55-305.
-- UI screens pull data via Next.js API routes for overview, sessions, tools, projects, models, providers, activity, and session detail. Locations: src/app/api/*.ts and src/app/*/page.tsx.
+- UI screens pull data via Next.js API routes for overview, sessions, tools, projects, models, providers, activity, and session detail. Locations: src/app/api/_.ts and src/app/_/page.tsx.
 
 ### State/data flow
+
 - JSONL lines are parsed incrementally into JSON objects (line-numbered, error tracked) and routed by `type`/`kind`/`event_type`/`eventType` to parsers for session meta, turn context, response items, and token usage. Locations: src/lib/ingestion/jsonl-reader.ts:66-142 and src/lib/ingestion/parsers/helpers.ts:24-30.
 - Parsed records are inserted into `session`, `message`, `model_call`, and `session_context` tables; log parsing inserts into `tool_call` and `tool_call_event`. Locations: src/lib/ingestion/index.ts:163-295 and src/lib/db/schema.sql:37-155.
-- Metrics modules query the DB and aggregate data for dashboards and tables. Locations: src/lib/metrics/*.ts.
-- Hooks build query params and call API routes, which pass filters and pagination into metrics modules. Locations: src/hooks/use-*.ts and src/app/api/*.ts.
+- Metrics modules query the DB and aggregate data for dashboards and tables. Locations: src/lib/metrics/\*.ts.
+- Hooks build query params and call API routes, which pass filters and pagination into metrics modules. Locations: src/hooks/use-_.ts and src/app/api/_.ts.
 
 ### External dependencies
+
 - Filesystem sources: `~/.codex/sessions/**/*.jsonl`, `~/.codex/log/codex-tui.log`, and a watcher that treats `history.jsonl` as relevant. Locations: src/lib/ingestion/file-discovery.ts:52-75 and src/lib/watcher/index.ts:91-98.
 - Pricing data for cost estimates is fetched or read for model usage. Locations: src/lib/metrics/overview.ts:1-305 and src/lib/metrics/models.ts:1-169.
 
 ### Error handling/cancellation
+
 - JSON parse errors are captured with line numbers and truncated raw content. Locations: src/lib/ingestion/jsonl-reader.ts:117-126.
 - File stat/read errors are captured per file with synthetic line numbers. Locations: src/lib/ingestion/index.ts:129-152.
-- UI error handling varies by screen; most pages show `ErrorState` when `error && !data`, otherwise inline empty rows or cards. Locations: src/app/*/page.tsx and src/components/*.
+- UI error handling varies by screen; most pages show `ErrorState` when `error && !data`, otherwise inline empty rows or cards. Locations: src/app/_/page.tsx and src/components/_.
 
 ## Key Findings (ranked)
+
 1. **Primary ingest sources are JSONL session files and the CLI log; `history.jsonl` is considered relevant by the watcher but not ingested by `ingestInternal`.**
    - Location(s): src/lib/ingestion/file-discovery.ts:52-75, src/lib/ingestion/index.ts:112-245, src/lib/watcher/index.ts:91-98.
    - Observation: Session JSONL files under `~/.codex/sessions` are the only JSON sources enumerated by the ingest pipeline; the watcher flags `history.jsonl`, but there is no discovery or parse path for it in `ingestInternal`.
@@ -107,6 +115,7 @@ Observability data is ingested from JSONL session files under the Codex home dir
    - Relevance to Y: Existing insights (median calls/tokens/cost/duration by day) are not surfaced.
 
 ## Candidate Change Points (not an implementation plan)
+
 Behavior must remain identical.
 
 1. **Spec: Surface session metadata and add advanced session filters**
@@ -171,17 +180,20 @@ Behavior must remain identical.
      - Users can see whether data is current and whether errors occurred during ingest.
 
 ## Risks and Guardrails
+
 - Message content storage is gated by `CODEX_OBSERV_STORE_CONTENT`; UI must handle `null` content gracefully. Locations: src/lib/ingestion/parsers/response-item.ts:97-109.
 - Tool-call timestamps may differ in timezone (log parser notes local vs UTC), so timeline windows should remain conservative. Locations: src/lib/metrics/session-detail.ts:189-205.
 - Project grouping logic merges worktrees by canonical name and git remote; changes must preserve this behavior. Locations: src/lib/metrics/projects.ts:8-16,452-478.
 
 ## Open Questions/Assumptions
+
 - Is `history.jsonl` intended to be ingested? The watcher treats it as relevant, but `ingestInternal` does not load it.
 - Are originator/CLI-version filters desired in the primary Sessions UX, or should they be secondary/advanced filters?
 - Should Models/Providers be range-filtered to match the rest of the dashboard, or intentionally global?
 - Should message content ever be displayed when `CODEX_OBSERV_STORE_CONTENT` is disabled, or should the UI signal that content storage is off?
 
 ## References (paths only)
+
 - src/lib/ingestion/index.ts
 - src/lib/ingestion/file-discovery.ts
 - src/lib/ingestion/jsonl-reader.ts
