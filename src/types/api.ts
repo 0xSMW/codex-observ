@@ -353,3 +353,84 @@ export type IngestStatusResponse = {
   lastRun: string | null
   lastResult: IngestResult | null
 }
+
+export type DesktopLogStatusResponse = {
+  hasLogs: boolean
+  total: number
+}
+
+export type WorktreeSeriesPoint = {
+  date: string
+  created: number
+  deleted: number
+  errors: number
+  active: number
+}
+
+export type WorktreesResponse = {
+  range?: RangeResponse
+  kpis: {
+    created: OverviewKpiValue
+    deleted: OverviewKpiValue
+    errors: OverviewKpiValue
+    active: OverviewKpiValue
+    failureRate: OverviewKpiValue
+  }
+  series: {
+    daily: WorktreeSeriesPoint[]
+  }
+}
+
+export type WorktreeEventListItem = {
+  id: string
+  ts: number
+  action: string
+  worktreePath: string | null
+  repoRoot: string | null
+  branch: string | null
+  status: string | null
+  error: string | null
+}
+
+export type WorktreeEventsResponse = {
+  range?: RangeResponse
+  pagination: PaginationResponse
+  events: WorktreeEventListItem[]
+}
+
+export type AutomationSeriesPoint = {
+  date: string
+  queued: number
+  completed: number
+  failed: number
+  backlog: number
+}
+
+export type AutomationsResponse = {
+  range?: RangeResponse
+  kpis: {
+    queued: OverviewKpiValue
+    completed: OverviewKpiValue
+    failed: OverviewKpiValue
+    backlogPeak: OverviewKpiValue
+    failureRate: OverviewKpiValue
+  }
+  series: {
+    daily: AutomationSeriesPoint[]
+  }
+}
+
+export type AutomationEventListItem = {
+  id: string
+  ts: number
+  action: string
+  threadId: string | null
+  status: string | null
+  error: string | null
+}
+
+export type AutomationEventsResponse = {
+  range?: RangeResponse
+  pagination: PaginationResponse
+  events: AutomationEventListItem[]
+}
