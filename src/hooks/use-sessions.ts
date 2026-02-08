@@ -14,6 +14,10 @@ export type SessionsQuery = {
   models?: string[]
   providers?: string[]
   project?: string
+  originator?: string
+  cliVersion?: string
+  branch?: string
+  worktree?: string
   range?: DateRange
 }
 
@@ -29,6 +33,10 @@ export function useSessions(query: SessionsQuery) {
     if (query.models?.length) search.set('models', query.models.join(','))
     if (query.providers?.length) search.set('providers', query.providers.join(','))
     if (query.project) search.set('project', query.project)
+    if (query.originator) search.set('originator', query.originator)
+    if (query.cliVersion) search.set('cliVersion', query.cliVersion)
+    if (query.branch) search.set('branch', query.branch)
+    if (query.worktree) search.set('worktree', query.worktree)
     if (query.range?.from) search.set('startDate', query.range.from.toISOString())
     if (query.range?.to) search.set('endDate', query.range.to.toISOString())
     return search.toString()

@@ -216,6 +216,12 @@ export type SessionDetailResponse = {
       correlationKey: string | null
     }>
   }
+  contextEvents: Array<{
+    id: string
+    ts: number
+    model: string | null
+    modelProvider: string | null
+  }>
 }
 
 export type ModelSummary = {
@@ -305,6 +311,11 @@ export type ToolCallsResponse = {
     tools: string[]
     sessionId: string | null
     search: string | null
+    exitCode?: number | null
+    hasError?: boolean | null
+    minDurationMs?: number | null
+    maxDurationMs?: number | null
+    project?: string | null
   }
   pagination: PaginationResponse
   summary: ToolCallSummary
@@ -352,6 +363,18 @@ export type IngestStatusResponse = {
   status: 'idle' | 'running'
   lastRun: string | null
   lastResult: IngestResult | null
+  filters?: { search: string | null }
+  summary?: {
+    totalFiles: number
+    lastUpdatedAt: number | null
+  }
+  pagination?: PaginationResponse
+  files?: Array<{
+    path: string
+    byteOffset: number
+    mtimeMs: number | null
+    updatedAt: number
+  }>
 }
 
 export type DesktopLogStatusResponse = {

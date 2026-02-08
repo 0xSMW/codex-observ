@@ -1,15 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import { TerminalSquare, Timer, CheckCircle2, AlertTriangle, Search } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useToolCalls, ToolCallsQuery } from '@/hooks/use-tool-calls'
 import { KpiGrid } from '@/components/dashboard/kpi-grid'
-import { ChartSkeleton, KpiSkeleton, TableSkeleton } from '@/components/shared/loading-skeleton'
+import { KpiSkeleton, TableSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
 import { StatusBadge } from '@/components/shared/status-badge'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Pagination,
   PaginationContent,
@@ -39,6 +47,14 @@ export default function ToolsPage() {
   const [pageSize] = useState(25)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filters, setFilters] = useState({
+    status: 'all',
+    tool: 'all',
+    hasError: 'all',
+    exitCode: '',
+    minDuration: '',
+    maxDuration: '',
+  })
 
   // Debounce search
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,17 +66,40 @@ export default function ToolsPage() {
     return () => clearTimeout(timer)
   }
 
+  const toNumber = (value: string) => {
+    if (!value.trim()) return undefined
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+
   const query: ToolCallsQuery = {
     range,
     page,
     pageSize,
     search: debouncedSearch || undefined,
+    status: filters.status !== 'all' ? [filters.status] : undefined,
+    tools: filters.tool !== 'all' ? [filters.tool] : undefined,
+    hasError:
+      filters.hasError === 'with' ? true : filters.hasError === 'without' ? false : undefined,
+    exitCode: toNumber(filters.exitCode),
+    minDurationMs: toNumber(filters.minDuration),
+    maxDurationMs: toNumber(filters.maxDuration),
   }
 
   const { data, error, isLoading, refresh } = useToolCalls(query)
 
   const summary = data?.summary
   const breakdown = data?.breakdown
+  const toolOptions = useMemo(() => {
+    const set = new Set<string>()
+    breakdown?.tools?.forEach((tool) => {
+      if (tool.tool) set.add(tool.tool)
+    })
+    data?.toolCalls?.forEach((call) => {
+      if (call.toolName) set.add(call.toolName)
+    })
+    return Array.from(set)
+  }, [breakdown?.tools, data?.toolCalls])
 
   const kpiItems = summary
     ? [
@@ -154,20 +193,102 @@ export default function ToolsPage() {
         </div>
       )}
 
-      <div className="rounded-lg border bg-card">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
-          <div className="relative w-64 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search commands..."
-              className="pl-9 h-9"
-              value={search}
-              onChange={handleSearchChange}
-            />
-          </div>
+      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 lg:flex-row lg:flex-wrap lg:items-center">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Search commands..."
+            className="pl-9 h-9"
+            value={search}
+            onChange={handleSearchChange}
+          />
         </div>
+        <Select
+          value={filters.status}
+          onValueChange={(status) => {
+            setFilters((prev) => ({ ...prev, status }))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full lg:w-40">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="ok">Ok</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="unknown">Unknown</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.tool}
+          onValueChange={(tool) => {
+            setFilters((prev) => ({ ...prev, tool }))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full lg:w-48">
+            <SelectValue placeholder="All tools" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All tools</SelectItem>
+            {toolOptions.map((tool) => (
+              <SelectItem key={tool} value={tool}>
+                {tool}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.hasError}
+          onValueChange={(hasError) => {
+            setFilters((prev) => ({ ...prev, hasError }))
+            setPage(1)
+          }}
+        >
+          <SelectTrigger className="w-full lg:w-40">
+            <SelectValue placeholder="Errors" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="with">With errors</SelectItem>
+            <SelectItem value="without">Without errors</SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          type="number"
+          placeholder="Exit code"
+          className="w-full lg:w-32"
+          value={filters.exitCode}
+          onChange={(event) => {
+            setFilters((prev) => ({ ...prev, exitCode: event.target.value }))
+            setPage(1)
+          }}
+        />
+        <Input
+          type="number"
+          placeholder="Min duration (ms)"
+          className="w-full lg:w-44"
+          value={filters.minDuration}
+          onChange={(event) => {
+            setFilters((prev) => ({ ...prev, minDuration: event.target.value }))
+            setPage(1)
+          }}
+        />
+        <Input
+          type="number"
+          placeholder="Max duration (ms)"
+          className="w-full lg:w-44"
+          value={filters.maxDuration}
+          onChange={(event) => {
+            setFilters((prev) => ({ ...prev, maxDuration: event.target.value }))
+            setPage(1)
+          }}
+        />
+      </div>
 
+      <div className="rounded-lg border bg-card">
         {isLoading && !data && <TableSkeleton rows={5} />}
 
         {data && (
@@ -175,9 +296,12 @@ export default function ToolsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-32">Tool</TableHead>
+                <TableHead className="hidden md:table-cell w-28">Session</TableHead>
                 <TableHead className="min-w-0 max-w-[280px]">Command</TableHead>
                 <TableHead className="text-right w-16">Exit</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
+                <TableHead className="hidden lg:table-cell text-right">Stdout</TableHead>
+                <TableHead className="hidden lg:table-cell text-right">Stderr</TableHead>
                 <TableHead className="text-right">Status</TableHead>
                 <TableHead className="max-w-[160px]">Error</TableHead>
               </TableRow>
@@ -186,6 +310,18 @@ export default function ToolsPage() {
               {data.toolCalls.map((call) => (
                 <TableRow key={call.id} className="hover:bg-muted/40">
                   <TableCell className="font-medium">{call.toolName}</TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {call.sessionId ? (
+                      <Link
+                        href={`/sessions/${call.sessionId}`}
+                        className="text-primary hover:underline"
+                      >
+                        {call.sessionId.slice(0, 8)}
+                      </Link>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
                   <TableCell
                     className="min-w-0 max-w-[280px] truncate text-xs text-muted-foreground"
                     title={call.command ?? undefined}
@@ -197,6 +333,12 @@ export default function ToolsPage() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatDuration(call.durationMs === null ? Number.NaN : call.durationMs)}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-right tabular-nums">
+                    {call.stdoutBytes !== null ? formatCompactNumber(call.stdoutBytes) : '—'}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-right tabular-nums">
+                    {call.stderrBytes !== null ? formatCompactNumber(call.stderrBytes) : '—'}
                   </TableCell>
                   <TableCell className="text-right">
                     <StatusBadge status={call.status} />
@@ -211,7 +353,7 @@ export default function ToolsPage() {
               ))}
               {data.toolCalls.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
                     No tool calls recorded.
                   </TableCell>
                 </TableRow>

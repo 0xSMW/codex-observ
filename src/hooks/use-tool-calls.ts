@@ -12,6 +12,12 @@ export type ToolCallsQuery = {
   page?: number
   pageSize?: number
   search?: string
+  status?: string[]
+  tools?: string[]
+  exitCode?: number
+  hasError?: boolean
+  minDurationMs?: number
+  maxDurationMs?: number
 }
 
 export function useToolCalls(query: ToolCallsQuery) {
@@ -24,6 +30,14 @@ export function useToolCalls(query: ToolCallsQuery) {
     if (query.page) searchParams.set('page', query.page.toString())
     if (query.pageSize) searchParams.set('pageSize', query.pageSize.toString())
     if (query.search) searchParams.set('search', query.search)
+    if (query.status?.length) searchParams.set('status', query.status.join(','))
+    if (query.tools?.length) searchParams.set('tools', query.tools.join(','))
+    if (query.exitCode !== undefined) searchParams.set('exitCode', String(query.exitCode))
+    if (query.hasError !== undefined) searchParams.set('hasError', String(query.hasError))
+    if (query.minDurationMs !== undefined)
+      searchParams.set('minDurationMs', String(query.minDurationMs))
+    if (query.maxDurationMs !== undefined)
+      searchParams.set('maxDurationMs', String(query.maxDurationMs))
     return searchParams.toString()
   }, [query])
 

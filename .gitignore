@@ -46,3 +46,6 @@ next-env.d.ts
 /data.db
 *.sqlite
 *.sqlite3
+
+# local Codex desktop app bundle (build outputs, deps)
+/codexapp/

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
@@ -11,6 +11,7 @@ import { useProviders } from '@/hooks/use-providers'
 import { useProjects } from '@/hooks/use-projects'
 import { SessionFilters, type SessionFiltersValue } from '@/components/sessions/session-filters'
 import { SessionsMediansTiles } from '@/components/sessions/sessions-medians-charts'
+import { SessionsMediansChart } from '@/components/sessions/sessions-medians-chart'
 import { SessionsTable } from '@/components/sessions/sessions-table'
 import { TableSkeleton } from '@/components/shared/loading-skeleton'
 import { ErrorState } from '@/components/shared/error-state'
@@ -26,7 +27,28 @@ export default function SessionsPage() {
     model: 'all',
     provider: 'all',
     project: 'all',
+    originator: '',
+    cliVersion: '',
+    branch: '',
+    worktree: '',
   })
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const modelParam = params.get('model') ?? params.get('models')
+    const providerParam = params.get('provider') ?? params.get('providers')
+    setFilters((prev) => ({
+      ...prev,
+      search: params.get('search') ?? params.get('q') ?? '',
+      model: modelParam ? modelParam.split(',')[0] : 'all',
+      provider: providerParam ? providerParam.split(',')[0] : 'all',
+      project: params.get('project') ?? params.get('projectId') ?? 'all',
+      originator: params.get('originator') ?? '',
+      cliVersion: params.get('cliVersion') ?? params.get('cli_version') ?? '',
+      branch: params.get('branch') ?? '',
+      worktree: params.get('worktree') ?? params.get('projectRefId') ?? '',
+    }))
+  }, [])
 
   const query = {
     page,
@@ -35,13 +57,17 @@ export default function SessionsPage() {
     models: filters.model !== 'all' ? [filters.model] : undefined,
     providers: filters.provider !== 'all' ? [filters.provider] : undefined,
     project: filters.project !== 'all' ? filters.project : undefined,
+    originator: filters.originator || undefined,
+    cliVersion: filters.cliVersion || undefined,
+    branch: filters.branch || undefined,
+    worktree: filters.worktree || undefined,
     range,
   }
 
   const { data, error, isLoading, refresh } = useSessions(query)
   const { data: mediansData } = useSessionsMedians(range)
-  const { data: modelsData } = useModels()
-  const { data: providersData } = useProviders()
+  const { data: modelsData } = useModels(range)
+  const { data: providersData } = useProviders(range)
   const { data: projectsData } = useProjects({
     page: 1,
     pageSize: 100,
@@ -78,6 +104,9 @@ export default function SessionsPage() {
   return (
     <div className="space-y-6">
       {mediansData?.summary ? <SessionsMediansTiles summary={mediansData.summary} /> : null}
+      {mediansData?.series && mediansData.series.length > 0 ? (
+        <SessionsMediansChart data={mediansData.series} />
+      ) : null}
 
       <SessionFilters
         value={filters}

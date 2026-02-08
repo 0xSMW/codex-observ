@@ -36,7 +36,7 @@ export function Header() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {pathname !== '/' && pathname !== '/models' && !pathname.startsWith('/sessions/') && (
+          {pathname !== '/' && pathname !== '/ingest' && !pathname.startsWith('/sessions/') && (
             <div className="hidden md:block">
               <DateRangePicker />
             </div>

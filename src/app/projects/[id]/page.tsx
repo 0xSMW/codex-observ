@@ -219,7 +219,20 @@ export default function ProjectDetailPage() {
                   .sort((a, b) => b.sessionCount - a.sessionCount)
                   .map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="font-medium">{row.branch ?? '—'}</TableCell>
+                      <TableCell className="font-medium">
+                        {row.branch ? (
+                          <Link
+                            href={`/sessions?project=${encodeURIComponent(project.id)}&branch=${encodeURIComponent(
+                              row.branch
+                            )}`}
+                            className="text-primary hover:underline"
+                          >
+                            {row.branch}
+                          </Link>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground flex items-center gap-1">
                         {row.commit ? <GitCommit className="h-3 w-3" /> : null}
                         {row.commit ? row.commit.substring(0, 7) : '—'}

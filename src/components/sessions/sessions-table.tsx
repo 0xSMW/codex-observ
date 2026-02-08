@@ -34,6 +34,9 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
             <TableHead>Session</TableHead>
             <TableHead>Workspace</TableHead>
             <TableHead>Model provider</TableHead>
+            <TableHead className="hidden md:table-cell">Originator</TableHead>
+            <TableHead className="hidden lg:table-cell">Branch</TableHead>
+            <TableHead className="hidden lg:table-cell">CLI</TableHead>
             <TableHead className="text-right">Messages</TableHead>
             <TableHead className="text-right">Tokens</TableHead>
             <TableHead className="text-right">Duration</TableHead>
@@ -55,6 +58,20 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
               <TableCell>
                 <div className="text-sm">{session.modelProvider ?? '—'}</div>
               </TableCell>
+              <TableCell className="hidden md:table-cell">
+                <div className="text-sm">{session.originator ?? '—'}</div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div className="text-sm">{session.gitBranch ?? '—'}</div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <div
+                  className="text-xs text-muted-foreground truncate"
+                  title={session.cliVersion ?? ''}
+                >
+                  {session.cliVersion ?? '—'}
+                </div>
+              </TableCell>
               <TableCell className="text-right tabular-nums">
                 {formatCompactNumber(session.messageCount)}
               </TableCell>
@@ -73,7 +90,7 @@ export function SessionsTable({ sessions }: { sessions: SessionListItem[] }) {
           ))}
           {sessions.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
                 No sessions found.
               </TableCell>
             </TableRow>

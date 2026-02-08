@@ -14,12 +14,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ErrorState } from '@/components/shared/error-state'
 import { TableSkeleton } from '@/components/shared/loading-skeleton'
 import { KPIStatCard } from '@/components/shared/kpi-card'
+import { useDateRange } from '@/hooks/use-date-range'
 import { useModels } from '@/hooks/use-models'
 import { useProviders } from '@/hooks/use-providers'
 import {
   formatCompactNumber,
   formatCost,
-  formatDuration,
   formatDurationSeconds,
   formatPercent,
   formatCurrency,
@@ -27,18 +27,19 @@ import {
 import { ModelsCostChart, ModelsTokenChart } from '@/components/models/models-charts'
 
 export default function ModelsPage() {
+  const { range } = useDateRange()
   const {
     data: modelsData,
     error: modelsError,
     isLoading: modelsLoading,
     refresh: refreshModels,
-  } = useModels()
+  } = useModels(range)
   const {
     data: providersData,
     error: providersError,
     isLoading: providersLoading,
     refresh: refreshProviders,
-  } = useProviders()
+  } = useProviders(range)
 
   const aggregates = modelsData?.aggregates
 

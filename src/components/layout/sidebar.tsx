@@ -7,10 +7,10 @@ import {
   Calendar,
   Cpu,
   FolderGit2,
+  RefreshCw,
   Gauge,
   GitBranch,
   MessageSquare,
-  RefreshCw,
   TerminalSquare,
   Workflow,
 } from 'lucide-react'
@@ -39,6 +39,7 @@ import { ThemeToggle } from '@/components/layout/theme-toggle'
 const iconMap = {
   Gauge,
   FolderGit2,
+  RefreshCw,
   GitBranch,
   MessageSquare,
   TerminalSquare,

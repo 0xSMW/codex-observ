@@ -30,8 +30,7 @@ type FileMeta = {
 }
 
 const RECORD_START = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s/
-const HEADER_MATCH =
-  /^(?<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+(?<level>[a-zA-Z]+)\s+(?<rest>.*)$/
+const HEADER_MATCH = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\s+([a-zA-Z]+)\s+(.*)$/
 
 const SAFE_COMPONENTS = new Set([
   'sparkle',
@@ -235,14 +234,14 @@ function parseLogRecord(lines: string[]): {
 } | null {
   if (lines.length === 0) return null
   const headerMatch = HEADER_MATCH.exec(lines[0])
-  if (!headerMatch?.groups) return null
+  if (!headerMatch) return null
 
-  const tsRaw = headerMatch.groups.ts
+  const tsRaw = headerMatch[1]
   const ts = Date.parse(tsRaw)
   if (!Number.isFinite(ts)) return null
 
-  const level = headerMatch.groups.level?.toLowerCase() ?? null
-  let rest = headerMatch.groups.rest ?? ''
+  const level = headerMatch[2]?.toLowerCase() ?? null
+  let rest = headerMatch[3] ?? ''
   rest = rest.trim()
 
   let component: string | null = null

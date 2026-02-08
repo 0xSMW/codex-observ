@@ -67,6 +67,13 @@ export interface ToolCallItem {
   correlationKey: string | null
 }
 
+export interface SessionContextItem {
+  id: string
+  ts: number
+  model: string | null
+  modelProvider: string | null
+}
+
 export interface ListResult<T> {
   total: number
   items: T[]
@@ -78,6 +85,7 @@ export interface SessionDetailResult {
   messages: ListResult<MessageItem>
   modelCalls: ListResult<ModelCallItem>
   toolCalls: ListResult<ToolCallItem>
+  contextEvents: SessionContextItem[]
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -110,6 +118,7 @@ export function getSessionDetail(
       messages: { total: 0, items: [] },
       modelCalls: { total: 0, items: [] },
       toolCalls: { total: 0, items: [] },
+      contextEvents: [],
     }
   }
 
@@ -127,6 +136,7 @@ export function getSessionDetail(
       messages: { total: 0, items: [] },
       modelCalls: { total: 0, items: [] },
       toolCalls: { total: 0, items: [] },
+      contextEvents: [],
     }
   }
 
@@ -368,11 +378,34 @@ export function getSessionDetail(
     })
   }
 
+  let contextEvents: SessionContextItem[] = []
+  if (tableExists(db, 'session_context')) {
+    const where: string[] = ['session_id = ?']
+    const params: unknown[] = [sessionId]
+    buildRange('ts', range, where, params)
+    const whereSql = where.join(' AND ')
+    const rows = db
+      .prepare(
+        `SELECT id, ts, model, model_provider
+        FROM session_context
+        WHERE ${whereSql}
+        ORDER BY ts ASC`
+      )
+      .all(...params) as Record<string, unknown>[]
+    contextEvents = rows.map((row) => ({
+      id: String(row.id ?? ''),
+      ts: toNumber(row.ts),
+      model: (row.model as string | null) ?? null,
+      modelProvider: (row.model_provider as string | null) ?? null,
+    }))
+  }
+
   return {
     session,
     stats,
     messages,
     modelCalls,
     toolCalls,
+    contextEvents,
   }
 }

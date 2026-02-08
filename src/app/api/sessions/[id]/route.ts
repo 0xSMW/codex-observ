@@ -73,6 +73,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
         pagination: paginationToResponse(toolPagination.pagination, result.toolCalls.total),
         items: result.toolCalls.items,
       },
+      contextEvents: result.contextEvents,
     })
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error))

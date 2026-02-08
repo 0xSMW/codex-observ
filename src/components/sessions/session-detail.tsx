@@ -8,12 +8,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/shared/status-badge'
-import {
-  formatCompactNumber,
-  formatDuration,
-  formatDurationSeconds,
-  formatPercent,
-} from '@/lib/constants'
+import { formatCompactNumber, formatDurationSeconds, formatPercent } from '@/lib/constants'
 import type { SessionDetailResponse } from '@/types/api'
 
 function successStatus(rate: number, toolCallCount: number) {
@@ -120,6 +115,8 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                 <TableHead className="text-right">Input</TableHead>
                 <TableHead className="text-right">Cached</TableHead>
                 <TableHead className="text-right">Output</TableHead>
+                <TableHead className="text-right">Reasoning</TableHead>
+                <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
               </TableRow>
             </TableHeader>
@@ -136,6 +133,12 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
                   <TableCell className="text-right tabular-nums">
                     {formatCompactNumber(call.outputTokens)}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {call.reasoningTokens > 0 ? formatCompactNumber(call.reasoningTokens) : '—'}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCompactNumber(call.totalTokens)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatDurationSeconds(call.durationMs === null ? Number.NaN : call.durationMs)}
                   </TableCell>
@@ -143,8 +146,43 @@ export function SessionDetail({ data }: { data: SessionDetailResponse }) {
               ))}
               {data.modelCalls.items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
                     No model calls recorded.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Model switches</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Time</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Provider</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.contextEvents.map((evt) => (
+                <TableRow key={evt.id}>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {new Date(evt.ts).toLocaleString()}
+                  </TableCell>
+                  <TableCell className="font-medium">{evt.model ?? '—'}</TableCell>
+                  <TableCell className="text-sm">{evt.modelProvider ?? '—'}</TableCell>
+                </TableRow>
+              ))}
+              {data.contextEvents.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
+                    No model switches recorded.
                   </TableCell>
                 </TableRow>
               )}

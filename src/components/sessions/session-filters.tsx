@@ -14,6 +14,10 @@ export type SessionFiltersValue = {
   model: string
   provider: string
   project: string
+  originator: string
+  cliVersion: string
+  branch: string
+  worktree: string
 }
 
 export function SessionFilters({
@@ -30,8 +34,8 @@ export function SessionFilters({
   onChange: (next: SessionFiltersValue) => void
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 lg:flex-row lg:items-center">
-      <div className="flex-1">
+    <div className="grid gap-3 rounded-lg border bg-card p-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="md:col-span-2 xl:col-span-2">
         <Input
           placeholder="Search by cwd, branch, or originator"
           value={value.search}
@@ -39,7 +43,7 @@ export function SessionFilters({
         />
       </div>
       <Select value={value.project} onValueChange={(project) => onChange({ ...value, project })}>
-        <SelectTrigger className="w-full lg:w-48">
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="All projects" />
         </SelectTrigger>
         <SelectContent>
@@ -52,7 +56,7 @@ export function SessionFilters({
         </SelectContent>
       </Select>
       <Select value={value.model} onValueChange={(model) => onChange({ ...value, model })}>
-        <SelectTrigger className="w-full lg:w-48">
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="All models" />
         </SelectTrigger>
         <SelectContent>
@@ -65,7 +69,7 @@ export function SessionFilters({
         </SelectContent>
       </Select>
       <Select value={value.provider} onValueChange={(provider) => onChange({ ...value, provider })}>
-        <SelectTrigger className="w-full lg:w-48">
+        <SelectTrigger className="w-full">
           <SelectValue placeholder="All providers" />
         </SelectTrigger>
         <SelectContent>
@@ -77,6 +81,26 @@ export function SessionFilters({
           ))}
         </SelectContent>
       </Select>
+      <Input
+        placeholder="Originator (exact)"
+        value={value.originator}
+        onChange={(event) => onChange({ ...value, originator: event.target.value })}
+      />
+      <Input
+        placeholder="CLI version (exact)"
+        value={value.cliVersion}
+        onChange={(event) => onChange({ ...value, cliVersion: event.target.value })}
+      />
+      <Input
+        placeholder="Branch (exact)"
+        value={value.branch}
+        onChange={(event) => onChange({ ...value, branch: event.target.value })}
+      />
+      <Input
+        placeholder="Worktree ID (exact)"
+        value={value.worktree}
+        onChange={(event) => onChange({ ...value, worktree: event.target.value })}
+      />
     </div>
   )
 }
