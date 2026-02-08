@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect } from 'react'
 import { Clock, Cpu, DollarSign, Gauge, Layers, TerminalSquare, Zap } from 'lucide-react'
 
 import { useDateRange } from '@/hooks/use-date-range'
 import { useOverview } from '@/hooks/use-overview'
+import { useProjectFilter } from '@/hooks/use-project-filter'
 import { ChartCard } from '@/components/dashboard/chart-card'
 import { KpiGrid } from '@/components/dashboard/kpi-grid'
 import { TokensChart } from '@/components/dashboard/tokens-chart'
@@ -24,7 +26,27 @@ function getTrend(delta: number | null): 'neutral' | 'up' | 'down' {
 
 export default function TrendsPage() {
   const { range } = useDateRange()
-  const { data, error, isLoading, isFallback, refresh } = useOverview(range)
+  const { project, setDeferProjectsFetch } = useProjectFilter()
+
+  const { data, error, isLoading, isFallback, refresh } = useOverview({
+    range,
+    project: project ?? undefined,
+  })
+
+  const requestedStartMs = range.from?.getTime()
+  const requestedEndMs = range.to?.getTime()
+  const responseStartMs = data?.range?.startMs
+  const responseEndMs = data?.range?.endMs
+  const isRangeStale =
+    typeof requestedStartMs === 'number' &&
+    typeof requestedEndMs === 'number' &&
+    typeof responseStartMs === 'number' &&
+    typeof responseEndMs === 'number' &&
+    (requestedStartMs !== responseStartMs || requestedEndMs !== responseEndMs)
+
+  useEffect(() => {
+    setDeferProjectsFetch(isRangeStale || (isLoading && !data))
+  }, [data, isLoading, isRangeStale, setDeferProjectsFetch])
 
   const series = data?.series?.daily ?? []
   const kpis = data?.kpis

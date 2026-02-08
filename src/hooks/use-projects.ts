@@ -14,12 +14,14 @@ export type ProjectsQuery = {
   range?: DateRange
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  enabled?: boolean
 }
 
 export function useProjects(query: ProjectsQuery) {
   const { lastUpdate } = useLiveUpdatesContext()
 
   const params = useMemo(() => {
+    if (query.enabled === false) return ''
     const search = new URLSearchParams({
       page: String(query.page),
       pageSize: String(query.pageSize),
@@ -38,9 +40,10 @@ export function useProjects(query: ProjectsQuery) {
     query.range?.to,
     query.sortBy,
     query.sortOrder,
+    query.enabled,
   ])
 
-  const url = `/api/projects?${params}`
+  const url = query.enabled === false ? null : `/api/projects?${params}`
 
   return useApiData<ProjectsResponse>(url, undefined, {
     refreshInterval: 30000,

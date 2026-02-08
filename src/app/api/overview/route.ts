@@ -1,5 +1,6 @@
 import { fetchPricing } from '@/lib/pricing'
 import { resolveRange, rangeToResponse } from '@/lib/metrics/date-range'
+import { parseSearchParam } from '@/lib/metrics/filters'
 import { jsonError, jsonOk } from '@/lib/metrics/http'
 import { getOverview } from '@/lib/metrics/overview'
 
@@ -11,9 +12,11 @@ export async function GET(request: Request) {
       return jsonError(errors.join('; '), 'invalid_query')
     }
 
+    const project = parseSearchParam(url.searchParams, ['project', 'projectId'])
+
     const pricingData = await fetchPricing()
-    const data = getOverview({ range, pricingData })
-    return jsonOk({ range: rangeToResponse(range), ...data })
+    const data = getOverview({ range, pricingData, project })
+    return jsonOk({ range: rangeToResponse(range), filters: { project }, ...data })
   } catch (error) {
     console.error('overview:failed', error)
     return jsonError('Failed to load overview', 'internal_error', 500)

@@ -86,15 +86,35 @@ function findPricing(
   if (!model || model === 'unknown') return null
   const m = model.trim()
   if (!m) return null
-  if (data[m]) return data[m]
-  const variants = [
-    `openai/${m}`,
-    `azure/${m}`,
-    `anthropic/${m}`,
-    `openai/${m}`.replace(/\./g, '-'),
-  ]
-  for (const v of variants) {
-    if (data[v]) return data[v]
+
+  const aliases: string[] = []
+  // Temporary pricing alias: LiteLLM doesn't publish `gpt-5.3-codex` yet, but our logs already
+  // contain it. Treat it as `gpt-5.2-codex` (including cached-token pricing) until upstream
+  // adds real pricing for 5.3. Remove this once `gpt-5.3-codex` exists in the source.
+  if (m === 'gpt-5.3-codex') {
+    aliases.push('gpt-5.2-codex')
+  }
+  if (m.endsWith('/gpt-5.3-codex')) {
+    aliases.push(m.replace('/gpt-5.3-codex', '/gpt-5.2-codex'))
+    aliases.push('gpt-5.2-codex')
+  }
+
+  const baseCandidates = Array.from(new Set([m, ...aliases]))
+
+  for (const candidate of baseCandidates) {
+    if (data[candidate]) return data[candidate]
+  }
+
+  for (const candidate of baseCandidates) {
+    const variants = [
+      `openai/${candidate}`,
+      `azure/${candidate}`,
+      `anthropic/${candidate}`,
+      `openai/${candidate}`.replace(/\./g, '-'),
+    ]
+    for (const v of variants) {
+      if (data[v]) return data[v]
+    }
   }
   return null
 }

@@ -140,12 +140,14 @@ export function repoNameFromRemote(remoteUrl: string | null): string | null {
     const normalized = normalizeGitUrl(remoteUrl)
     if (!normalized) return null
 
-    // Extract the last path segment (repo name)
-    const parts = normalized.split('/')
-    const lastPart = parts[parts.length - 1]
-    if (!lastPart) return null
+    // Only treat normalized HTTP(S) remotes as valid.
+    if (!normalized.startsWith('https://') && !normalized.startsWith('http://')) return null
 
-    return lastPart
+    const parsed = new URL(normalized)
+    const parts = parsed.pathname.split('/').filter(Boolean)
+    if (parts.length < 2) return null
+
+    return parts[parts.length - 1] ?? null
   } catch {
     return null
   }

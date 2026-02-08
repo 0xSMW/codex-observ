@@ -5,6 +5,7 @@ import {
   querySessionsCount,
   queryToolCallsCount,
   querySessionIds,
+  queryProjectIds,
 } from '../helpers/db'
 import { expectOverviewShape } from '../helpers/assertions'
 import { getTestDbPath } from '../setup'
@@ -65,6 +66,48 @@ describe('E2E API tests', () => {
       const tokens = queryTokenTotals(range)
       const sessions = querySessionsCount(range)
       const toolCalls = queryToolCallsCount(range)
+
+      expect(data.kpis.totalTokens.value).toBe(tokens.totalTokens)
+      expect(data.kpis.sessions.value).toBe(sessions)
+      expect(data.kpis.modelCalls.value).toBe(tokens.modelCalls)
+      expect(data.kpis.toolCalls.value).toBe(toolCalls.total)
+      if (tokens.inputTokens > 0) {
+        const expectedCacheRate = tokens.cachedInputTokens / tokens.inputTokens
+        expect(Math.abs(data.kpis.cacheHitRate.value - expectedCacheRate)).toBeLessThan(0.001)
+      }
+      if (toolCalls.total > 0) {
+        expect(Math.abs(data.kpis.successRate.value - toolCalls.successRate)).toBeLessThan(0.001)
+      }
+    })
+
+    it('supports filtering by project', async () => {
+      const range = {
+        startMs: new Date(fixtureRange.startDate).getTime(),
+        endMs: new Date(fixtureRange.endDate).getTime(),
+      }
+      const projects = queryProjectIds(range, 1)
+      if (projects.length === 0) {
+        return
+      }
+
+      const project = projects[0]
+      const res = await fetch(apiUrl('/api/overview', { ...fixtureRange, project }))
+      expect(res.status).toBe(200)
+      const data = (await res.json()) as {
+        kpis: {
+          totalTokens: { value: number }
+          cacheHitRate: { value: number }
+          sessions: { value: number }
+          modelCalls: { value: number }
+          toolCalls: { value: number }
+          successRate: { value: number }
+        }
+      }
+      expectOverviewShape(data)
+
+      const tokens = queryTokenTotals(range, project)
+      const sessions = querySessionsCount(range, project)
+      const toolCalls = queryToolCallsCount(range, project)
 
       expect(data.kpis.totalTokens.value).toBe(tokens.totalTokens)
       expect(data.kpis.sessions.value).toBe(sessions)

@@ -1,7 +1,7 @@
 import { computeCost, getPricingForModel } from '@/lib/pricing'
 import { toNumber } from '@/lib/utils'
 import { applyDateRange, DateRange, getPreviousRange } from './date-range'
-import { getDatabase } from './db'
+import { getDatabase, tableExists } from './db'
 import { safeAll, safeGet } from './query-helpers'
 
 type KpiValue = {
@@ -49,23 +49,53 @@ function kpi(value: number, previous: number | null): KpiValue {
   return { value, previous, delta, deltaPct }
 }
 
-function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) {
+function queryTokenTotals(
+  db: ReturnType<typeof getDatabase>,
+  range: DateRange,
+  project?: string | null
+) {
+  const fallback = {
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    reasoningTokens: 0,
+    totalTokens: 0,
+    modelCalls: 0,
+    avgDurationMs: 0,
+  }
+
   return safeGet(
     'model_call',
     (db) => {
+      if (project && !tableExists(db, 'session')) {
+        return fallback
+      }
+
       const where: string[] = []
       const params: unknown[] = []
-      applyDateRange('ts', range, where, params)
+      applyDateRange('mc.ts', range, where, params)
+      if (project) {
+        where.push('s.project_id = ?')
+        params.push(project)
+      }
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+      const joinSql = project ? 'JOIN session s ON s.id = mc.session_id' : ''
 
       // Infer duration from next model call in same session when duration_ms is null (matches session-detail logic)
       const row = db
         .prepare(
           `WITH with_next AS (
-        SELECT input_tokens, cached_input_tokens, output_tokens, reasoning_tokens, total_tokens,
-          duration_ms, ts,
-          LEAD(ts) OVER (PARTITION BY session_id ORDER BY ts) AS next_ts
-        FROM model_call
+        SELECT
+          mc.input_tokens,
+          mc.cached_input_tokens,
+          mc.output_tokens,
+          mc.reasoning_tokens,
+          mc.total_tokens,
+          mc.duration_ms,
+          mc.ts AS ts,
+          LEAD(mc.ts) OVER (PARTITION BY mc.session_id ORDER BY mc.ts) AS next_ts
+        FROM model_call mc
+        ${joinSql}
         ${whereSql}
       )
       SELECT
@@ -94,25 +124,25 @@ function queryTokenTotals(db: ReturnType<typeof getDatabase>, range: DateRange) 
         avgDurationMs: toNumber(row?.avg_duration_ms),
       }
     },
-    {
-      inputTokens: 0,
-      cachedInputTokens: 0,
-      outputTokens: 0,
-      reasoningTokens: 0,
-      totalTokens: 0,
-      modelCalls: 0,
-      avgDurationMs: 0,
-    }
+    fallback
   )
 }
 
-function querySessionsCount(db: ReturnType<typeof getDatabase>, range: DateRange): number {
+function querySessionsCount(
+  db: ReturnType<typeof getDatabase>,
+  range: DateRange,
+  project?: string | null
+): number {
   return safeGet(
     'session',
     (db) => {
       const where: string[] = []
       const params: unknown[] = []
       applyDateRange('ts', range, where, params)
+      if (project) {
+        where.push('project_id = ?')
+        params.push(project)
+      }
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
       const row = db
         .prepare(`SELECT COUNT(*) AS sessions FROM session ${whereSql}`)
@@ -123,14 +153,29 @@ function querySessionsCount(db: ReturnType<typeof getDatabase>, range: DateRange
   )
 }
 
-function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) {
+function queryToolSummary(
+  db: ReturnType<typeof getDatabase>,
+  range: DateRange,
+  project?: string | null
+) {
+  const fallback = { toolCalls: 0, okCalls: 0, avgDurationMs: 0 }
+
   return safeGet(
     'tool_call',
     (db) => {
+      if (project && !tableExists(db, 'session')) {
+        return fallback
+      }
+
       const where: string[] = []
       const params: unknown[] = []
-      applyDateRange('start_ts', range, where, params)
+      applyDateRange('tc.start_ts', range, where, params)
+      if (project) {
+        where.push('s.project_id = ?')
+        params.push(project)
+      }
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+      const joinSql = project ? 'JOIN session s ON s.id = tc.session_id' : ''
 
       // Use end_ts - start_ts when duration_ms is null (matches session-detail logic)
       const row = db
@@ -143,7 +188,8 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
           WHEN end_ts IS NOT NULL AND start_ts IS NOT NULL AND end_ts >= start_ts THEN (end_ts - start_ts)
           ELSE NULL
         END), 0) AS avg_duration_ms
-      FROM tool_call
+      FROM tool_call tc
+      ${joinSql}
       ${whereSql}`
         )
         .get(...params) as Record<string, unknown> | undefined
@@ -154,31 +200,42 @@ function queryToolSummary(db: ReturnType<typeof getDatabase>, range: DateRange) 
         avgDurationMs: toNumber(row?.avg_duration_ms),
       }
     },
-    { toolCalls: 0, okCalls: 0, avgDurationMs: 0 }
+    fallback
   )
 }
 
 function queryDailySeries(
   db: ReturnType<typeof getDatabase>,
   range: DateRange,
-  pricingData: Record<string, unknown> | null
+  pricingData: Record<string, unknown> | null,
+  project?: string | null
 ): OverviewSeriesPoint[] {
   const rows = safeAll('model_call', (db) => {
+    if (project && !tableExists(db, 'session')) {
+      return []
+    }
+
     const where: string[] = []
     const params: unknown[] = []
-    applyDateRange('ts', range, where, params)
+    applyDateRange('mc.ts', range, where, params)
+    if (project) {
+      where.push('s.project_id = ?')
+      params.push(project)
+    }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+    const joinSql = project ? 'JOIN session s ON s.id = mc.session_id' : ''
 
     return db
       .prepare(
         `SELECT
-        strftime('%Y-%m-%d', ts / 1000, 'unixepoch', 'localtime') AS date,
-        model,
-        COALESCE(input_tokens, 0) AS input_tokens,
-        COALESCE(cached_input_tokens, 0) AS cached_input_tokens,
-        COALESCE(output_tokens, 0) AS output_tokens,
-        COALESCE(reasoning_tokens, 0) AS reasoning_tokens
-      FROM model_call
+        strftime('%Y-%m-%d', mc.ts / 1000, 'unixepoch', 'localtime') AS date,
+        mc.model,
+        COALESCE(mc.input_tokens, 0) AS input_tokens,
+        COALESCE(mc.cached_input_tokens, 0) AS cached_input_tokens,
+        COALESCE(mc.output_tokens, 0) AS output_tokens,
+        COALESCE(mc.reasoning_tokens, 0) AS reasoning_tokens
+      FROM model_call mc
+      ${joinSql}
       ${whereSql}
       ORDER BY date ASC`
       )
@@ -252,27 +309,28 @@ function queryDailySeries(
 
 export interface GetOverviewOptions {
   range: DateRange
+  project?: string | null
   pricingData?: Record<string, unknown> | null
 }
 
-export function getOverview(options: DateRange | GetOverviewOptions): OverviewResponse {
-  const range = typeof options === 'object' && 'range' in options ? options.range : options
-  const pricingData =
-    typeof options === 'object' && 'pricingData' in options ? (options.pricingData ?? null) : null
+export function getOverview(options: GetOverviewOptions): OverviewResponse {
+  const range = options.range
+  const pricingData = options.pricingData ?? null
+  const project = options.project ?? null
 
   const db = getDatabase()
-  const currentTokens = queryTokenTotals(db, range)
-  const currentSessions = querySessionsCount(db, range)
-  const currentTools = queryToolSummary(db, range)
-  const dailySeries = queryDailySeries(db, range, pricingData)
+  const currentTokens = queryTokenTotals(db, range, project)
+  const currentSessions = querySessionsCount(db, range, project)
+  const currentTools = queryToolSummary(db, range, project)
+  const dailySeries = queryDailySeries(db, range, pricingData, project)
 
   const totalCost = dailySeries.reduce((sum, p) => sum + p.estimatedCost, 0)
 
   const prevRange = getPreviousRange(range)
-  const prevTokens = prevRange ? queryTokenTotals(db, prevRange) : null
-  const prevSessions = prevRange ? querySessionsCount(db, prevRange) : null
-  const prevTools = prevRange ? queryToolSummary(db, prevRange) : null
-  const prevDaily = prevRange ? queryDailySeries(db, prevRange, pricingData) : []
+  const prevTokens = prevRange ? queryTokenTotals(db, prevRange, project) : null
+  const prevSessions = prevRange ? querySessionsCount(db, prevRange, project) : null
+  const prevTools = prevRange ? queryToolSummary(db, prevRange, project) : null
+  const prevDaily = prevRange ? queryDailySeries(db, prevRange, pricingData, project) : []
   const prevTotalCost = prevDaily.reduce((sum, p) => sum + p.estimatedCost, 0)
 
   const cacheHitRate =

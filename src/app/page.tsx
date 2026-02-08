@@ -24,7 +24,7 @@ export default function ActivityPage() {
     }),
     [year]
   )
-  const { data: overviewData } = useOverview(ytdRange)
+  const { data: overviewData } = useOverview({ range: ytdRange })
   const costSeries = overviewData?.series?.daily ?? []
 
   const summary = data?.summary
