@@ -28,8 +28,8 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { title: 'Sessions', href: '/sessions', icon: 'MessageSquare', description: 'Session history' },
   { title: 'Tools', href: '/tools', icon: 'TerminalSquare', description: 'Tool call analytics' },
-  { title: 'Ingest', href: '/ingest', icon: 'RefreshCw', description: 'Ingest status' },
   { title: 'Models', href: '/models', icon: 'Cpu', description: 'Models & providers' },
+  { title: 'Ingest', href: '/ingest', icon: 'RefreshCw', description: 'Ingest status' },
 ]
 
 export const CHART_COLORS = {
